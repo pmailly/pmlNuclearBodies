@@ -203,7 +203,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         for (int i = 1; i <= img.getStackSize(); i++) {
             img.setZ(i);
             img.updateAndDraw();
-            IJ.run(img, "Nuceli Outline", "blur="+blur1+" blur2="+blur2+" threshold_method="+method+
+            IJ.run(img, "Nuclei Outline", "blur="+blur1+" blur2="+blur2+" threshold_method="+method+
                     " outlier_radius="+radius+" outlier_threshold=1 max_nucleus_size="+maxNuc+
                     " min_nucleus_size="+minNuc+" erosion=5 expansion_inner=5 expansion=5 results_overlay");
             img.setZ(1);
