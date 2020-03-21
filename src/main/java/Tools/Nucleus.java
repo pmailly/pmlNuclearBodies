@@ -47,7 +47,7 @@ public class Nucleus {
 		this.sphericity = sphericity;
 	}
         
-        public void setDiffuseInt(double diffuseInt) {
+        public void setDiffuse(double diffuseInt) {
 		this.diffuseInt = diffuseInt;
 	}
         
@@ -76,7 +76,7 @@ public class Nucleus {
         }
         
         public double getDiffuse() {
-            return(sphericity);
+            return(diffuseInt);
         }
         
         public int getPML() {

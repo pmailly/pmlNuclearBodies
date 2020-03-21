@@ -8,6 +8,7 @@ import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.Plot;
 import ij.gui.Roi;
+import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
 import ij.plugin.GaussianBlur3D;
@@ -326,11 +327,11 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         if (integrated)
             dotsIntDiffuse = (nuc.getObj().getIntegratedDensity(imhDotsDiffuse)/nucVolume) * (nucVolume - volDotsDilated); 
         else {
-            ArrayUtil pixelInt = nuc.getObj().listValues​(imhDotsDiffuse);
+            ArrayUtil pixelInt = nuc.getObj().listValues(imhDotsDiffuse, 0);
             dotsIntDiffuse = pixelInt.getMean();
         }
         // put in nucleus object diffus intensity 
-        nuc.setDiffuseInt(dotsIntDiffuse);
+        nuc.setDiffuse(dotsIntDiffuse);
         imhDotsDiffuse.closeImagePlus();
 
     }
@@ -382,7 +383,6 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         for (int p = 0; p < dotsPop.getNbObjects(); p++) {
             Object3D dotsObj = dotsPop.getObject(p);
             double dotsInt = dotsObj.getPixMeanValue(imhDotsOrg);
-            //System.out.println("dots = "+dotsInt+" diffus = "+dotsDiffuse);
             if (dotsInt <= dotsDiffuse*intFactor) {
                 dotsPop.removeObject(p);
                 p--;
@@ -398,12 +398,10 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     */
     public static Objects3DPopulation coloc(Object3D nucObj, Objects3DPopulation dotsPop) {
         Objects3DPopulation dotsInNuc = new Objects3DPopulation();
-        int dots = 0;
         for (int p = 0; p < dotsPop.getNbObjects(); p++) {
             Object3D dotsObj = dotsPop.getObject(p);
             if (dotsObj.pcColoc(nucObj) > 80) {
                 dotsInNuc.addObject(dotsObj);
-                dots++;
             }
         }
         return(dotsInNuc);

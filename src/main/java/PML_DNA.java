@@ -49,6 +49,7 @@ import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
 import static Tools.PML_Tools.watershed;
 import ij.gui.Roi;
+import ij.gui.WaitForUserDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
 import java.util.Arrays;
@@ -257,8 +258,8 @@ public class PML_DNA implements PlugIn {
                                 Find pml dots in nucleus and compute diffuse intensity
                             */
                             median_filter(imgPMLCropDup, 1);
-                            IJ.run(imgPMLCropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
-                            threshold(imgPMLCropDup, AutoThresholder.Method.RenyiEntropy, false, true);
+                            IJ.run(imgPMLCropDup, "Difference of Gaussians", " sigma1=3 sigma2=1 stack");
+                            threshold(imgPMLCropDup, AutoThresholder.Method.RenyiEntropy, false, false);
 
                             Objects3DPopulation pmlPop = getPopFromImage(imgPMLCropDup, cal);
                             objectsSizeFilter(minPML, maxPML, pmlPop,imgPMLCropDup, false); 
@@ -297,7 +298,7 @@ public class PML_DNA implements PlugIn {
                             ImagePlus imgDNACropDup = imgDNACrop.duplicate();
                             
                             IJ.run(imgDNACropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
-                            threshold(imgDNACropDup, AutoThresholder.Method.IJ_IsoData, false, true);
+                            threshold(imgDNACropDup, AutoThresholder.Method.IJ_IsoData, false, false);
 
                             Objects3DPopulation dnaPop = getPopFromImage(imgDNACropDup, cal);
                             objectsSizeFilter(minPML, maxPML, dnaPop, imgDNACropDup, false); 
