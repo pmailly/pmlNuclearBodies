@@ -4,7 +4,7 @@
  * Measure integrated intensity, nb of dots per nucleus 
  * Author Philippe Mailly
  */
-
+import Tools.Nucleus;
 import static Tools.PML_Tools.segMethod;
 import static Tools.PML_Tools.writeHeaders;
 import static Tools.PML_Tools.ObjectsIntFilter;
@@ -79,9 +79,9 @@ public class PML_ES_NPM1C implements PlugIn {
 // Default Z step
     private final double zStep = 0.153;
 
-    
+// Nucleus     
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);   
 
-     
 
     /**
      * 
@@ -210,7 +210,7 @@ public class PML_ES_NPM1C implements PlugIn {
                         System.out.println("Opening PML original channel");
                         options.setCBegin(s, pmlCh);
                         options.setCEnd(s, pmlCh);
-                        ImagePlus imgDotsOrg = BF.openImagePlus(options)[0];
+                        ImagePlus imgPMLOrg = BF.openImagePlus(options)[0];
                         
                         // For all nucleus crop image
                         // Find PML in nucleus
@@ -230,14 +230,15 @@ public class PML_ES_NPM1C implements PlugIn {
                             int[] box = nucObj.getBoundingBox();
                             Roi roiBox = new Roi(box[0], box[2], box[1] - box[0], box[3] - box[2]);
                             // Crop PML image
-                            imgDotsOrg.setRoi(roiBox);
-                            imgDotsOrg.updateAndDraw();
-                            ImagePlus imgDotsCrop = new Duplicator().run(imgDotsOrg, ZStartNuc, ZStopNuc);
-                            imgDotsCrop.deleteRoi();
-                            imgDotsCrop.updateAndDraw();
-                            ImagePlus imgDotsCropDup = imgDotsCrop.duplicate();
+                            imgPMLOrg.setRoi(roiBox);
+                            imgPMLOrg.updateAndDraw();
+                            ImagePlus imgPMLCrop = new Duplicator().run(imgPMLOrg, ZStartNuc, ZStopNuc);
+                            imgPMLCrop.deleteRoi();
+                            imgPMLCrop.updateAndDraw();
+                            ImagePlus imgDotsCropDup = imgPMLCrop.duplicate();
                             nucObj.translate(-nucObj.getXmin(), -nucObj.getYmin(), -ZStartNuc + 1);
-                            nucObj.setName(Integer.toString(nucIndex));
+                            Nucleus nucleusObj = new Nucleus(nucObj, nucIndex, nucObj.getVolumeUnit(), nucObj.getSphericity(true),
+                                    0, 0, 0);
                             // Crop mut image
                             imgMutOrg.setRoi(roiBox);
                             imgMutOrg.updateAndDraw();
@@ -258,22 +259,22 @@ public class PML_ES_NPM1C implements PlugIn {
                             System.out.println("Nucleus "+nucIndex+" PML = "+pmlNucPop.getNbObjects());
                             
                             // pre-processing PML diffus image intensity 
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, false);
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, false);
                              // intensity filter
-                            ObjectsIntFilter(nucObj, pmlNucPop, imgDotsCrop);
+                            ObjectsIntFilter(nucleusObj, pmlNucPop, imgPMLCrop);
                             System.out.println("Nucleus "+nucIndex+" PML after intensity filter = "+pmlNucPop.getNbObjects());
                             // Find PML diffus intensity on pml filtered intensity
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, true);
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, true);
                             // save diffuse image
-                            saveDiffuseImage(pmlNucPop, nucObj, imgDotsCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
+                            saveDiffuseImage(pmlNucPop, nucObj, imgPMLCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
                             // Compute parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume
                             IJ.showStatus("Writing parameters ...");
-                            computeNucParameters2(nucObj, nucIndex, pmlNucPop, imgDotsCrop, imgMutCrop, rootName+seriesName, outDirResults, outPutPMLResultsGlobal);
-                            computeNucParameters(nucObj, pmlNucPop, imgDotsCrop, imgMutCrop, rootName+seriesName, outPutPMLResultsDetail);
+                            computeNucParameters2(nucObj, nucIndex, pmlNucPop, imgPMLCrop, imgMutCrop, rootName+seriesName, outDirResults, outPutPMLResultsGlobal);
+                            computeNucParameters(nucObj, nucIndex, pmlNucPop, imgPMLCrop, imgMutCrop, rootName+seriesName, outPutPMLResultsDetail);
                             
                             // Save objects image
-                            ImageHandler imhDotsObjects = ImageHandler.wrap(imgDotsCrop).createSameDimensions();
+                            ImageHandler imhDotsObjects = ImageHandler.wrap(imgPMLCrop).createSameDimensions();
                             ImageHandler imhNucObjects = imhDotsObjects.duplicate();
                             pmlNucPop.draw(imhDotsObjects, 255);
                             nucObj.draw(imhNucObjects, 255);
@@ -283,15 +284,15 @@ public class PML_ES_NPM1C implements PlugIn {
                             imgObjects.setCalibration(cal);
                             IJ.run(imgObjects, "Enhance Contrast", "saturated=0.35");
                             FileSaver ImgObjectsFile = new FileSaver(imgObjects);
-                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucIndex + "-PML_Objects.tif");
+                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucIndex + "_PML_Objects.tif");
                             flush_close(imgObjects);
                             flush_close(imhDotsObjects.getImagePlus());
                             flush_close(imhNucObjects.getImagePlus());
                             flush_close(imgDotsCropDup);
-                            flush_close(imgDotsCrop);
+                            flush_close(imgPMLCrop);
                             flush_close(imgMutCrop);
                         }
-                        flush_close(imgDotsOrg);
+                        flush_close(imgPMLOrg);
                         flush_close(imgMutOrg);
                         options.setSeriesOn(s, false);
                     }

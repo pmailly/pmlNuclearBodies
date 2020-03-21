@@ -309,7 +309,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
      * @param imgDots
      * @param integrated
      */
-    public static void dotsDiffuse(Objects3DPopulation dotsPop, Object3D nucObj, ImagePlus imgDots, boolean integrated) {
+    public static void dotsDiffuse(Objects3DPopulation dotsPop, Nucleus nuc, ImagePlus imgDots, boolean integrated) {
         ImageHandler imhDotsDiffuse = ImageHandler.wrap(imgDots.duplicate());
         double dotsIntDiffuse ;
         int dots = dotsPop.getNbObjects();
@@ -322,15 +322,15 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
             dotsDilatedObj.draw(imhDotsDiffuse, 0);
             volDotsDilated += dotsDilatedObj.getVolumeUnit();
         }
-        double nucVolume = nucObj.getVolumeUnit();
+        double nucVolume = nuc.getVol();
         if (integrated)
-            dotsIntDiffuse = (nucObj.getIntegratedDensity(imhDotsDiffuse)/nucVolume) * (nucVolume - volDotsDilated); 
+            dotsIntDiffuse = (nuc.getObj().getIntegratedDensity(imhDotsDiffuse)/nucVolume) * (nucVolume - volDotsDilated); 
         else {
-            ArrayUtil pixelInt = nucObj.listValues​(imhDotsDiffuse);
+            ArrayUtil pixelInt = nuc.getObj().listValues​(imhDotsDiffuse);
             dotsIntDiffuse = pixelInt.getMean();
         }
-        // put in comment nucleus object diffus intensity 
-        nucObj.setComment(Double.toString(dotsIntDiffuse));
+        // put in nucleus object diffus intensity 
+        nuc.setDiffuseInt(dotsIntDiffuse);
         imhDotsDiffuse.closeImagePlus();
 
     }
@@ -350,7 +350,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     public static void saveDiffuseImage(Objects3DPopulation dotsPop, Object3D nucObj, ImagePlus imgDotsOrg, String outDirResults,
             String rootName, String seriesName, String diffuse, int index) {
         ImageHandler imhDotsDiffuse = ImageHandler.wrap(imgDotsOrg.duplicate());
-       
+        String nucNumber = String.format("%03d", index);
         float dilate = 1.5f;
         for (int p = 0; p < dotsPop.getNbObjects(); p++) {
             Object3D dotsObj = dotsPop.getObject(p);
@@ -363,7 +363,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         drawCountours(nucObj, imgColor, Color.white);
         // Save diffus
         FileSaver imgDiffus = new FileSaver(imgColor);
-        imgDiffus.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc"+index+"_"+diffuse+".tif");
+        imgDiffus.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc"+nucNumber+"_"+diffuse+".tif");
         flush_close(imgColor);
         imhDotsDiffuse.closeImagePlus();
     }
@@ -375,15 +375,15 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
      * @param dotsPop
      * @param imgDotsOrg
     */
-    public static void ObjectsIntFilter(Object3D nucObj, Objects3DPopulation dotsPop, ImagePlus imgDotsOrg) {
+    public static void ObjectsIntFilter(Nucleus nuc, Objects3DPopulation dotsPop, ImagePlus imgDotsOrg) {
         ImageHandler imhDotsOrg = ImageHandler.wrap(imgDotsOrg.duplicate());
-        double dotsDiffuse = parseDouble(nucObj.getComment());
+        double dotsDiffuse = nuc.getDiffuse();
         // Remove dots with intensity < dots diffuse
         for (int p = 0; p < dotsPop.getNbObjects(); p++) {
             Object3D dotsObj = dotsPop.getObject(p);
             double dotsInt = dotsObj.getPixMeanValue(imhDotsOrg);
             //System.out.println("dots = "+dotsInt+" diffus = "+dotsDiffuse);
-            if (dotsInt < dotsDiffuse*intFactor) {
+            if (dotsInt <= dotsDiffuse*intFactor) {
                 dotsPop.removeObject(p);
                 p--;
             }
@@ -406,7 +406,6 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
                 dots++;
             }
         }
-        nucObj.setValue(dots);
         return(dotsInNuc);
     }
     
@@ -613,7 +612,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     * @param imgMut image file
      * @param results buffer
     **/
-    public static void computeNucParameters(Object3D nucObj, Objects3DPopulation dotsPop, ImagePlus imgDots, ImagePlus imgMut,
+    public static void computeNucParameters(Object3D nucObj, int nucIndex, Objects3DPopulation dotsPop, ImagePlus imgDots, ImagePlus imgMut,
             String imgName, BufferedWriter results) throws IOException {
         IJ.showStatus("Computing nucleus parameters ....");
         ImageHandler imhPML = ImageHandler.wrap(imgDots);
@@ -621,16 +620,16 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double  nucIntMut = 0;
         imhMut = ImageHandler.wrap(imgMut);
         nucIntMut = nucObj.getIntegratedDensity(imhMut);
-        
         // measure nucleus volume
         // measure dots integrated intensity and volume
         double  nucVolume = nucObj.getVolumeUnit();
+        double minDistBorder = Double.NaN;
         for (int p = 0; p < dotsPop.getNbObjects(); p++) {
             Object3D dotsObj = dotsPop.getObject(p);
             double dotsIntensity = dotsObj.getIntegratedDensity(imhPML);
             double dotsVolume = dotsObj.getVolumeUnit();
-            double minDistBorder = dotsObj.distCenterBorderUnit(nucObj);
-            results.write(imgName+"\t"+nucObj.getName()+"\t"+nucVolume+"\t"+nucIntMut+"\t"+(p+1)+"\t"+dotsIntensity+"\t"+dotsVolume+"\t"+minDistBorder+"\n");
+            //double minDistBorder = dotsObj.distCenterBorderUnit(nucObj);
+            results.write(imgName+"\t"+nucIndex+"\t"+nucVolume+"\t"+nucIntMut+"\t"+(p+1)+"\t"+dotsIntensity+"\t"+dotsVolume+"\t"+minDistBorder+"\n");
             results.flush();
         }
     }
@@ -644,7 +643,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
      * @param results buffer
      * @throws java.io.IOException
     **/
-    public static void computeNucParameters(Object3D nucObj, Objects3DPopulation dotsPop, ImagePlus imgDots,
+    public static void computeNucParameters(Nucleus nuc, Objects3DPopulation dotsPop, ImagePlus imgDots,
             String imgName, BufferedWriter results) throws IOException {
         IJ.showStatus("Computing nucleus parameters ....");
         ImageHandler imhPML = ImageHandler.wrap(imgDots);
@@ -652,13 +651,12 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double minDistBorder = Double.NaN;
         // measure nucleus volume
         // measure dots integrated intensity and volume
-        double  nucVolume = nucObj.getVolumeUnit();
         for (int p = 0; p < dots; p++) {
             Object3D dotsObj = dotsPop.getObject(p);
             double dotsIntensity = dotsObj.getIntegratedDensity(imhPML);
             double dotsVolume = dotsObj.getVolumeUnit();
             //minDistBorder = dotsObj.distCenterBorderUnit(nucObj);
-            results.write(imgName+"\t"+nucObj.getName()+"\t"+nucVolume+"\t"+(p+1)+"\t"+dotsIntensity+"\t"+dotsVolume+"\t"+minDistBorder+"\n");
+            results.write(imgName+"\t"+nuc.getIndex()+"\t"+nuc.getVol()+"\t"+(p+1)+"\t"+dotsIntensity+"\t"+dotsVolume+"\t"+minDistBorder+"\n");
             results.flush();
         }
     }
@@ -781,15 +779,15 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     
     /**
     * Compute global nucleus dots parameters for fixed cells
-    * @param nucObj nucleus
-     * @param nucIndex
+     * @param nuc
+     * @param dots
     * @param dotsPop dots population
     * @param imgDots read dots intensity
      * @param imgName
      * @param results buffer
      * @throws java.io.IOException
     **/
-    public static void computeGlobalNucParameters(Object3D nucObj, int nucIndex, Objects3DPopulation dotsPop, ImagePlus imgDots, 
+    public static void computeGlobalNucParameters(Nucleus nuc, String dots, Objects3DPopulation dotsPop, ImagePlus imgDots, 
             String imgName, BufferedWriter results) throws IOException {
         IJ.showStatus("Computing nucleus parameters ....");
         ImageHandler imhPML = ImageHandler.wrap(imgDots);
@@ -800,16 +798,19 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         DescriptiveStatistics dotsMinDistBorder = new DescriptiveStatistics();
         double dotsMinDistCenterMean = Double.NaN;
         double dotsMinDistCenterSD = Double.NaN;
-        int dotsNuc = dotsPop.getNbObjects();
-        double nucVolume = nucObj.getVolumeUnit();
-        String nucIntDiffuse = nucObj.getComment();
-        double nucShericity = nucObj.getSphericity(true);
+        int dotsNuc = 0;
+        if (dots.equals("pml"))
+                dotsNuc = nuc.getPML();
+        else
+             dotsNuc = nuc.getDNA();
+        double nucVolume = nuc.getVol();
+        double nucShericity = nuc.getSphericity();
         
             for (int p = 0; p < dotsNuc; p++) {
                 Object3D dotsObj = dotsPop.getObject(p);
                 dotsIntensity.addValue(dotsObj.getIntegratedDensity(imhPML));
                 dotsVolume.addValue(dotsObj.getVolumeUnit());
-                dotsMinDistBorder.addValue(dotsObj.distCenterBorderUnit(nucObj));
+                //dotsMinDistBorder.addValue(dotsObj.distCenterBorderUnit(nucObj));
             }
 
         if (dotsPop.getNbObjects() > 2) {
@@ -828,8 +829,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double dotsVolumeSum = dotsVolume.getSum();
         double dotsMinDistBorderMean = dotsMinDistBorder.getMean();
         double dotsMinDistBorderSD = dotsMinDistBorder.getStandardDeviation();
-
-        results.write(imgName+"\t"+nucIndex+"\t"+nucVolume+"\t"+nucShericity+"\t"+dotsNuc+"\t"+nucIntDiffuse+"\t"+dotsIntMean+"\t"+
+        results.write(imgName+"\t"+nuc.getIndex()+"\t"+nucVolume+"\t"+nucShericity+"\t"+dotsNuc+"\t"+nuc.getDiffuse()+"\t"+dotsIntMean+"\t"+
                 dotsIntSD+"\t"+dotsIntMin+"\t"+dotsIntMax+"\t"+dotsVolumeMean+"\t"+dotsVolumeSD+"\t"+dotsVolumeMin+"\t"+dotsVolumeMax+"\t"+dotsVolumeSum+"\t"+
                 dotsMinDistCenterMean+"\t"+ dotsMinDistCenterSD+"\t"+ dotsMinDistBorderMean+"\t"+ dotsMinDistBorderSD+"\n");
         results.flush();

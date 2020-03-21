@@ -5,7 +5,7 @@
  * Author Philippe Mailly
  */
 
-
+import Tools.Nucleus;
 import static Tools.PML_Tools.writeHeaders;
 import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
@@ -78,7 +78,8 @@ public class PML_Spinning_Confocal implements PlugIn {
     public boolean deconvImage = false;
 // Default Z step
     private final double zStep = 0.153;
-    
+// Nucleus     
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);    
 
       
 
@@ -254,7 +255,8 @@ public class PML_Spinning_Confocal implements PlugIn {
                             imgDotsCrop.updateAndDraw();
                             ImagePlus imgDotsCropDup = imgDotsCrop.duplicate();
                             nucObj.translate(-nucObj.getXmin(), -nucObj.getYmin(), -ZStartNuc + 1);
-                            nucObj.setName(Integer.toString(nucIndex));
+                            Nucleus nucleusObj = new Nucleus(nucObj, nucIndex, nucObj.getVolumeUnit(), nucObj.getSphericity(true),
+                                    0, 0, 0);
                             
                             // Detect dots
                             median_filter(imgDotsCropDup, 1);
@@ -275,19 +277,19 @@ public class PML_Spinning_Confocal implements PlugIn {
                             System.out.println("Nucleus "+nucIndex+" PML = "+pmlNucPop.getNbObjects());
                             
                             // pre-processing PML diffus image intensity 
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, false);
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgDotsCrop, false);
                              // intensity filter
-                            ObjectsIntFilter(nucObj, pmlNucPop, imgDotsCrop);
+                            ObjectsIntFilter(nucleusObj, pmlNucPop, imgDotsCrop);
                             System.out.println("Nucleus "+nucIndex+" PML after intensity filter = "+pmlNucPop.getNbObjects());
                             // Find PML diffus intensity on pml filtered intensity
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, true);
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgDotsCrop, true);
                             // save diffuse image
                             saveDiffuseImage(pmlNucPop, nucObj, imgDotsCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
                             // Compute parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume
                             IJ.showStatus("Writing parameters ...");
-                            computeGlobalNucParameters(nucObj, nucIndex, pmlNucPop, imgDotsCrop, rootName+seriesName, outPutPMLResultsGlobal);
-                            computeNucParameters(nucObj, pmlNucPop, imgDotsCrop, rootName+seriesName, outPutPMLResultsDetail);
+                            computeGlobalNucParameters(nucleusObj, "pml", pmlNucPop, imgDotsCrop, rootName+seriesName, outPutPMLResultsGlobal);
+                            computeNucParameters(nucleusObj, pmlNucPop, imgDotsCrop, rootName+seriesName, outPutPMLResultsDetail);
                             
                             // Save objects image
                             ImageHandler imhDotsObjects = ImageHandler.wrap(imgDotsCrop).createSameDimensions();
@@ -300,7 +302,7 @@ public class PML_Spinning_Confocal implements PlugIn {
                             imgObjects.setCalibration(cal);
                             IJ.run(imgObjects, "Enhance Contrast", "saturated=0.35");
                             FileSaver ImgObjectsFile = new FileSaver(imgObjects);
-                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucIndex + "-PML_Objects.tif");
+                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucIndex + "_PML_Objects.tif");
                             flush_close(imgObjects);
                             flush_close(imhDotsObjects.getImagePlus());
                             flush_close(imhNucObjects.getImagePlus());

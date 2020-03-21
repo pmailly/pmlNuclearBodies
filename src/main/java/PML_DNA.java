@@ -5,7 +5,7 @@
  * Author Philippe Mailly
  */
 
-
+import Tools.Nucleus;
 import static Tools.PML_Tools.writeHeaders;
 import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
@@ -78,6 +78,8 @@ public class PML_DNA implements PlugIn {
    
 // Default Z step
     public static double zStep = 0.193;
+// Nucleus     
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);
     
 
     /**
@@ -209,7 +211,7 @@ public class PML_DNA implements PlugIn {
                         // save image for nucleus population
                         imhNuc.getImagePlus().setCalibration(cal);
                         FileSaver ImgNucFile = new FileSaver(imhNuc.getImagePlus());
-                        ImgNucFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "_Nucleus-Objects.tif");
+                        ImgNucFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "_Nucleus_Objects.tif");
                         imhNuc.closeImagePlus();
                         flush_close(imgNuc);
 
@@ -218,7 +220,7 @@ public class PML_DNA implements PlugIn {
                         System.out.println("Opening PML original channel");
                         options.setCBegin(s, pmlCh);
                         options.setCEnd(s, pmlCh);
-                        ImagePlus imgDotsOrg = BF.openImagePlus(options)[0];
+                        ImagePlus imgPMLOrg = BF.openImagePlus(options)[0];
                         
                         // For all nucleus crop image
                         // Find PML in nucleus and DNA fragmentation
@@ -232,22 +234,60 @@ public class PML_DNA implements PlugIn {
                         ImagePlus imgDNAOrg = BF.openImagePlus(options)[0];
                         
                         for (int n = 0; n < totalNucPop; n++) {
+                            nucIndex++;
                             Object3D nucObj = nucPop.getObject(n);
+                            
                             int ZStartNuc = nucObj.getZmin() +1;
                             int ZStopNuc = nucObj.getZmax() + 1;
-                            nucIndex++;
+                            
                             int[] box = nucObj.getBoundingBox();
                             Roi roiBox = new Roi(box[0], box[2], box[1] - box[0], box[3] - box[2]);
                             // Crop PML image
-                            imgDotsOrg.setRoi(roiBox);
-                            imgDotsOrg.updateAndDraw();
-                            ImagePlus imgDotsCrop = new Duplicator().run(imgDotsOrg, ZStartNuc, ZStopNuc);
-                            imgDotsCrop.deleteRoi();
-                            imgDotsCrop.updateAndDraw();
-                            ImagePlus imgDotsCropDup = imgDotsCrop.duplicate();
+                            imgPMLOrg.setRoi(roiBox);
+                            imgPMLOrg.updateAndDraw();
+                            ImagePlus imgPMLCrop = new Duplicator().run(imgPMLOrg, ZStartNuc, ZStopNuc);
+                            imgPMLCrop.deleteRoi();
+                            imgPMLCrop.updateAndDraw();
+                            ImagePlus imgPMLCropDup = imgPMLCrop.duplicate();
                             nucObj.translate(-nucObj.getXmin(), -nucObj.getYmin(), -ZStartNuc + 1);
-                            nucObj.setName(Integer.toString(nucIndex));
+                            Nucleus nucleusObj = new Nucleus(nucObj, nucIndex, nucObj.getVolumeUnit(), nucObj.getSphericity(true),
+                                    0, 0, 0);
                             
+                            /*
+                                Find pml dots in nucleus and compute diffuse intensity
+                            */
+                            median_filter(imgPMLCropDup, 1);
+                            IJ.run(imgPMLCropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
+                            threshold(imgPMLCropDup, AutoThresholder.Method.RenyiEntropy, false, true);
+
+                            Objects3DPopulation pmlPop = getPopFromImage(imgPMLCropDup, cal);
+                            objectsSizeFilter(minPML, maxPML, pmlPop,imgPMLCropDup, false); 
+                            System.out.println("PML pop after size filter = "+ pmlPop.getNbObjects());
+                            // Find pml in nucleus
+                            Objects3DPopulation pmlNucPop = coloc(nucObj, pmlPop);
+                            System.out.println("Nucleus "+nucIndex+" PML = "+pmlNucPop.getNbObjects());
+                            
+                            // pre-processing PML diffus image intensity 
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, false);
+                             // intensity filter
+                            ObjectsIntFilter(nucleusObj, pmlNucPop, imgPMLCrop);
+                            System.out.println("Nucleus "+nucIndex+" PML after intensity filter = "+pmlNucPop.getNbObjects());
+                            // Find PML diffus intensity on pml filtered intensity
+                            dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, true);
+                            // save diffuse image
+                            saveDiffuseImage(pmlNucPop, nucObj, imgPMLCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex);
+                            // add pml number to Nucleus
+                            nucleusObj.setPML(pmlNucPop.getNbObjects());
+                            // Compute global PML parameters                        
+                            // nucleus volume, nb of PML, mean PML intensity, mean PLM volume 
+                            IJ.showStatus("Writing parameters ...");
+                            computeGlobalNucParameters(nucleusObj, "pml", pmlNucPop, imgPMLCrop, rootName+seriesName+"_PML", outPutPMLResultsGlobal);
+                            // Compute detalled PML parameters 
+                            computeNucParameters(nucleusObj, pmlNucPop, imgPMLCrop, rootName+seriesName, outPutPMLResultsDetail);
+                        
+                            /*
+                                Find dna fragmentation in nucleus and compute diffuse intensity
+                            */
                             // Crop DNA image
                             imgDNAOrg.setRoi(roiBox);
                             imgDNAOrg.updateAndDraw();
@@ -255,39 +295,6 @@ public class PML_DNA implements PlugIn {
                             imgDNACrop.deleteRoi();
                             imgDNACrop.updateAndDraw();
                             ImagePlus imgDNACropDup = imgDNACrop.duplicate();
-                            /*
-                                Find pml dots in nucleus and compute diffuse intensity
-                            */
-                            median_filter(imgDotsCropDup, 1);
-                            IJ.run(imgDotsCropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
-                            threshold(imgDotsCropDup, AutoThresholder.Method.RenyiEntropy, false, true);
-
-                            Objects3DPopulation pmlPop = getPopFromImage(imgDotsCropDup, cal);
-                            objectsSizeFilter(minPML, maxPML, pmlPop,imgDotsCropDup, false); 
-                            System.out.println("PML pop after size filter = "+ pmlPop.getNbObjects());
-                            // Find pml in nucleus
-                            Objects3DPopulation pmlNucPop = coloc(nucObj, pmlPop);
-                            System.out.println("Nucleus "+nucIndex+" PML = "+pmlNucPop.getNbObjects());
-                            
-                            // pre-processing PML diffus image intensity 
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, false);
-                             // intensity filter
-                            //ObjectsIntFilter(nucObj, pmlNucPop, imgDotsCrop);
-                            System.out.println("Nucleus "+nucIndex+" PML after intensity filter = "+pmlNucPop.getNbObjects());
-                            // Find PML diffus intensity on pml filtered intensity
-                            dotsDiffuse(pmlNucPop, nucObj, imgDotsCrop, true);
-                            // save diffuse image
-                            saveDiffuseImage(pmlNucPop, nucObj, imgDotsCrop, outDirResults, rootName, seriesName, "pmlDiffuse", nucIndex);
-                            // Compute global PML parameters                        
-                            // nucleus volume, nb of PML, mean PML intensity, mean PLM volume 
-                            IJ.showStatus("Writing parameters ...");
-                            computeGlobalNucParameters(nucObj, nucIndex, pmlNucPop, imgDotsCrop, rootName+seriesName+"_PML", outPutPMLResultsGlobal);
-                            // Compute detalled PML parameters 
-                            computeNucParameters(nucObj, pmlNucPop, imgDotsCrop, rootName+seriesName, outPutPMLResultsDetail);
-                        
-                            /*
-                                Find dna fragmentation in nucleus and compute diffuse intensity
-                            */
                             
                             IJ.run(imgDNACropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
                             threshold(imgDNACropDup, AutoThresholder.Method.IJ_IsoData, false, true);
@@ -305,19 +312,21 @@ public class PML_DNA implements PlugIn {
                             //ObjectsIntFilter(nucObj, dnaNucPop, imgDNACrop);
                             //System.out.println("Nucleus "+nucIndex+" DNA after intensity filter = "+dnaNucPop.getNbObjects());
                             // Find DNA diffus intensity on DNA filtered intensity
-                            dotsDiffuse(dnaNucPop, nucObj, imgDNACrop, true);
+                            dotsDiffuse(dnaNucPop, nucleusObj, imgDNACrop, true);
                             // save diffuse image
                             saveDiffuseImage(dnaNucPop, nucObj, imgDNACrop, outDirResults, rootName, seriesName, "DNA_Diffuse", nucIndex) ;
-                            
+                            // add dna number to Nucleus
+                            nucleusObj.setDNA(dnaNucPop.getNbObjects());
                             // Compute global DNA parameters                        
                             // nucleus volume, nb of DNA, mean DNAL intensity, mean DNA volume 
                             IJ.showStatus("Writing parameters ...");
-                            computeGlobalNucParameters(nucObj, nucIndex, dnaNucPop, imgDNACrop, rootName+seriesName, outPutDNAResultsGlobal);
+                            computeGlobalNucParameters(nucleusObj, "dna", dnaNucPop, imgDNACrop, rootName+seriesName, outPutDNAResultsGlobal);
                             // Compute detailled DNA parameters
-                            computeNucParameters(nucObj,dnaNucPop, imgDNACrop, rootName+seriesName+"_DNA", outPutDNAResultsDetail);
+                            computeNucParameters(nucleusObj, dnaNucPop, imgDNACrop, rootName+seriesName+"_DNA", outPutDNAResultsDetail);
                             
                             // Save objects image
-                            ImageHandler imhPMLObjects = ImageHandler.wrap(imgDotsCrop).createSameDimensions();
+                            String nucNumber = String.format("%03d", nucIndex);
+                            ImageHandler imhPMLObjects = ImageHandler.wrap(imgPMLCrop).createSameDimensions();
                             ImageHandler imhNucObjects = imhPMLObjects.duplicate();
                             ImageHandler imhDNAObjects = imhPMLObjects.duplicate();
                             pmlNucPop.draw(imhPMLObjects, 255);
@@ -329,16 +338,16 @@ public class PML_DNA implements PlugIn {
                             imgObjects.setCalibration(cal);
                             IJ.run(imgObjects, "Enhance Contrast", "saturated=0.35");
                             FileSaver ImgObjectsFile = new FileSaver(imgObjects);
-                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucIndex + "-PML_Objects.tif");
+                            ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucNumber + "_PML_Objects.tif");
                             flush_close(imgObjects);
                             flush_close(imhPMLObjects.getImagePlus());
                             flush_close(imhDNAObjects.getImagePlus());
                             flush_close(imhNucObjects.getImagePlus());
-                            flush_close(imgDotsCropDup);
-                            flush_close(imgDotsCrop);
+                            flush_close(imgPMLCropDup);
+                            flush_close(imgPMLCrop);
                             flush_close(imgDNACrop);
                         }
-                        flush_close(imgDotsOrg);
+                        flush_close(imgPMLOrg);
                         flush_close(imgDNAOrg);
                         options.setSeriesOn(s, false);
                     }
