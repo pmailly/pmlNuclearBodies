@@ -94,7 +94,7 @@ public class PML_DNA implements PlugIn {
                 IJ.showMessage(" Pluging canceled");
                 return;
             }
-            imageDir = dialog(false);
+            imageDir = dialog();
             if (imageDir == null) {
                 return;
             }
@@ -297,7 +297,7 @@ public class PML_DNA implements PlugIn {
                             imgDNACrop.updateAndDraw();
                             ImagePlus imgDNACropDup = imgDNACrop.duplicate();
                             
-                            IJ.run(imgDNACropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
+                            IJ.run(imgDNACropDup, "Difference of Gaussians", " sigma1=3 sigma2=1 stack");
                             threshold(imgDNACropDup, AutoThresholder.Method.IJ_IsoData, false, false);
 
                             Objects3DPopulation dnaPop = getPopFromImage(imgDNACropDup, cal);

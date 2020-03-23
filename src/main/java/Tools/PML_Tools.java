@@ -76,7 +76,6 @@ public class PML_Tools {
     // Background intensity factor for filter pml 
     public static double intFactor = 1.5; 
     public static boolean watershed = false; 
-    public static boolean segMethod = false; 
     
  /**
  * 
@@ -96,20 +95,16 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     /**
      * Dialog 
      */
-    public static String dialog(boolean askMethod) {
+    public static String dialog() {
         String dir = "";
         GenericDialogPlus gd = new GenericDialogPlus("Parameters");
         gd.addDirectoryField("Choose Directory Containing Image Files : ", "");
         gd.addNumericField("Threshold above diffuse PML intensity : ", intFactor, 2);
         gd.addCheckbox(" WaterShed split", watershed);
-        if (askMethod)
-            gd.addCheckbox(" DOG nucleus segmentation method", segMethod);
         gd.showDialog();
         dir = gd.getNextString();
         intFactor = gd.getNextNumber();
         watershed = gd.getNextBoolean();
-        if (askMethod)
-            segMethod = gd.getNextBoolean();
         return(dir);
     }
     
@@ -199,23 +194,23 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     public static Objects3DPopulation find_nucleus(ImagePlus imgNuc, String method, int blur1, int blur2, 
             int radius, int minNuc, int maxNuc, int waterRad) {
         Calibration cal = imgNuc.getCalibration();
-        ImagePlus img = imgNuc.duplicate();
         ImageStack stack = new ImageStack(imgNuc.getWidth(), imgNuc.getHeight());
-        for (int i = 1; i <= img.getStackSize(); i++) {
-            img.setZ(i);
-            img.updateAndDraw();
-            IJ.run(img, "Nuclei Outline", "blur="+blur1+" blur2="+blur2+" threshold_method="+method+
+        for (int i = 1; i <= imgNuc.getStackSize(); i++) {
+            imgNuc.setZ(i);
+            imgNuc.updateAndDraw();
+            IJ.run(imgNuc, "Nuclei Outline", "blur="+blur1+" blur2="+blur2+" threshold_method="+method+
                     " outlier_radius="+radius+" outlier_threshold=1 max_nucleus_size="+maxNuc+
                     " min_nucleus_size="+minNuc+" erosion=5 expansion_inner=5 expansion=5 results_overlay");
-            img.setZ(1);
-            img.updateAndDraw();
-            ImagePlus mask = new ImagePlus("mask", img.createRoiMask().getBufferedImage());
+            imgNuc.setZ(1);
+            imgNuc.updateAndDraw();
+            ImagePlus mask = new ImagePlus("mask", imgNuc.createRoiMask().getBufferedImage());
             ImageProcessor ip =  mask.getProcessor();
             ip.invertLut();
             for (int n = 0; n < 3; n++) 
                 ip.erode();
             stack.addSlice(ip);
         }
+        imgNuc.deleteRoi();
         ImagePlus imgStack = new ImagePlus("Nucleus", stack);
         imgStack.setCalibration(cal);
         Objects3DPopulation nucPop = new Objects3DPopulation();
@@ -231,7 +226,6 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
             nucPop = getPopFromImage(imgStack, cal);
         }
         nucPop.removeObjectsTouchingBorders(imgStack, false);
-        flush_close(img);
         flush_close(imgStack);
         return(nucPop);
     }

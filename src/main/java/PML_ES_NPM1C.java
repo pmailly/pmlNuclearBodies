@@ -5,14 +5,11 @@
  * Author Philippe Mailly
  */
 import Tools.Nucleus;
-import static Tools.PML_Tools.segMethod;
 import static Tools.PML_Tools.writeHeaders;
 import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
 import static Tools.PML_Tools.computeNucParameters;
 import static Tools.PML_Tools.computeNucParameters2;
-import static Tools.PML_Tools.dialog;
-import static Tools.PML_Tools.dialogUnits;
 import static Tools.PML_Tools.find_nucleusCZI;
 import static Tools.PML_Tools.find_nucleus;
 import static Tools.PML_Tools.getPopFromImage;
@@ -49,13 +46,19 @@ import static Tools.PML_Tools.randomColorPop;
 import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
 import static Tools.PML_Tools.watershed;
+import fiji.util.gui.GenericDialogPlus;
 import ij.gui.Roi;
+import ij.gui.WaitForUserDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
+import java.awt.Color;
+import java.awt.Font;
+import java.util.ArrayList;
 import java.util.Arrays;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.ArrayUtils;
 
 
 public class PML_ES_NPM1C implements PlugIn {
@@ -80,9 +83,51 @@ public class PML_ES_NPM1C implements PlugIn {
     private final double zStep = 0.153;
 
 // Nucleus     
-    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);   
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);  
+    
+    public static boolean segMethod = false; 
 
 
+    
+    /**
+     * Dialog ask for channels order
+     * @param channels
+     * @param showCal
+     * @param cal
+     * @return ch;
+
+     */
+    public ArrayList dialog(String[] channels, boolean showCal, Calibration cal) {
+        ArrayList ch = new ArrayList();
+        GenericDialogPlus gd = new GenericDialogPlus("Parameters");
+        gd.addMessage("Channels", Font.getFont("Monospace"), Color.blue);
+        gd.addChoice("DAPI       : ", channels, channels[0]);
+        gd.addChoice("PML        : ", channels, channels[1]);
+        gd.addChoice("SUMO/NPM1C : ", channels, channels[2]);
+        gd.addNumericField("Threshold above diffuse PML intensity : ", intFactor, 2);
+        gd.addCheckbox(" WaterShed split", watershed);
+        gd.addCheckbox(" DOG nucleus segmentation method", segMethod);
+        if (showCal) {
+            gd.addMessage("No Z step calibration found", Font.getFont("Monospace"), Color.red);
+            gd.addNumericField("XY pixel size : ", cal.pixelWidth, 3);
+            gd.addNumericField("Z pixel size : ", zStep, 3);
+        }
+        gd.showDialog();
+        ch.add(0, gd.getNextChoice());
+        ch.add(1, gd.getNextChoice());
+        ch.add(2, gd.getNextChoice());
+        watershed = gd.getNextBoolean();
+        segMethod = gd.getNextBoolean();
+        if (showCal) {
+            cal.pixelWidth = gd.getNextNumber();
+            cal.pixelDepth = gd.getNextNumber();
+        }
+        
+        if(gd.wasCanceled())
+            ch = null;
+        return(ch);
+    }
+    
     /**
      * 
      * @param arg
@@ -94,7 +139,7 @@ public class PML_ES_NPM1C implements PlugIn {
                 IJ.showMessage(" Pluging canceled");
                 return;
             }
-            imageDir = dialog(true);
+            imageDir = IJ.getDirectory("Choose Directory Containing Image Files...");
             if (imageDir == null) {
                 return;
             }
@@ -143,13 +188,20 @@ public class PML_ES_NPM1C implements PlugIn {
             String imageName = "";
             String rootName = "";
             String seriesName = "";
+            ArrayList<String> ch = new ArrayList();
             for (int i = 0; i < imageFile.length; i++) {
                 String fileExt = FilenameUtils.getExtension(imageFile[i]);
                 if (fileExt.equals("czi")) {
                     imageName = inDir+ File.separator+imageFile[i];
                     rootName = imageFile[i].replace(".czi", "");
                     imageNum++;
+                    boolean showCal = false;
                     reader.setId(imageName);
+                    int chNb = reader.getSizeC();
+                    String[] channels = new String[chNb];
+                    
+                    for (int c = 0; c < chNb; c++) 
+                        channels[c] = meta.getChannelFluor(0, c);
                     // Check calibration
                     if (imageNum == 1) {
                         series = 0;
@@ -158,11 +210,19 @@ public class PML_ES_NPM1C implements PlugIn {
                         if (meta.getPixelsPhysicalSizeZ(series) != null)
                             cal.pixelDepth = meta.getPixelsPhysicalSizeZ(series).value().doubleValue();
                         else
-                            cal.pixelDepth = dialogUnits(zStep);
+                            showCal= true;
                         if (zStep == 0)
                             return;
                         cal.setUnit("microns");
                         System.out.println("x cal = " +cal.pixelWidth+", z cal=" + cal.pixelDepth);
+                        
+                        // return the index for channels DAPI, Astro, Dots and ask for calibration if needed 
+                        ch = dialog(channels, showCal, cal);
+
+                        if (ch == null) {
+                            IJ.showStatus("Plugin cancelled !!!");
+                            return;
+                        }
                     }
 
                     series = reader.getSeriesCount();  
@@ -180,17 +240,19 @@ public class PML_ES_NPM1C implements PlugIn {
                         /*
                         * Open DAPI channel
                         */
-                        int dapiCh = 1;                        
-                        options.setCBegin(s, dapiCh);
-                        options.setCEnd(s, dapiCh);
+                        int channelIndex = ArrayUtils.indexOf(channels, ch.get(0));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
                         System.out.println("-- Series : "+ seriesName);
-                        System.out.println("Opening Nucleus channel");
+                        System.out.println("Opening Nucleus channel "+ ch.get(0));
                         ImagePlus imgNuc= BF.openImagePlus(options)[0];
+                        
                         Objects3DPopulation nucPop = new Objects3DPopulation();
                         if (segMethod == false)
-                            nucPop = find_nucleus(imgNuc, "Li", 30, 50, 15, 20, 50, 5);
+                            nucPop = find_nucleus(imgNuc, "Li", 20, 30, 15, 5, 20, 8);
                         else
                             nucPop = find_nucleusCZI(imgNuc, 40);
+
                         objectsSizeFilter(minNuc, maxNuc, nucPop, imgNuc, true);
                         int totalNucPop = nucPop.getNbObjects();
                         System.out.println("nucleus after size filter= "+totalNucPop);
@@ -206,20 +268,20 @@ public class PML_ES_NPM1C implements PlugIn {
                         flush_close(imgNuc);
 
                         // Open Orginal PML channel to read dot intensity
-                        int pmlCh = 0;
-                        System.out.println("Opening PML original channel");
-                        options.setCBegin(s, pmlCh);
-                        options.setCEnd(s, pmlCh);
+                        channelIndex = ArrayUtils.indexOf(channels, ch.get(1));
+                        System.out.println("Opening PML original channel"+ch.get(1));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
                         ImagePlus imgPMLOrg = BF.openImagePlus(options)[0];
                         
                         // For all nucleus crop image
                         // Find PML in nucleus
                         int nucIndex = 0;
                         // Open mut channel 
-                        int mutCh = 2;
-                        System.out.println("Opening red channel");
-                        options.setCBegin(s, mutCh);
-                        options.setCEnd(s, mutCh);
+                        channelIndex = ArrayUtils.indexOf(channels, ch.get(2));
+                        System.out.println("Opening red channel"+ch.get(2));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
                         ImagePlus imgMutOrg = BF.openImagePlus(options)[0];
                         
                         for (int n = 0; n < totalNucPop; n++) {
@@ -248,8 +310,8 @@ public class PML_ES_NPM1C implements PlugIn {
                             
                             // Detect pml dots
                             median_filter(imgDotsCropDup, 1);
-                            IJ.run(imgDotsCropDup, "Difference of Gaussians", " sigma1=4 sigma2=1 stack");
-                            threshold(imgDotsCropDup, AutoThresholder.Method.RenyiEntropy, false, true);
+                            IJ.run(imgDotsCropDup, "Difference of Gaussians", " sigma1=3 sigma2=1 stack");
+                            threshold(imgDotsCropDup, AutoThresholder.Method.RenyiEntropy, false, false);
 
                             Objects3DPopulation pmlPop = getPopFromImage(imgDotsCropDup, cal);
                             objectsSizeFilter(minPML, maxPML, pmlPop,imgDotsCropDup, false); 
