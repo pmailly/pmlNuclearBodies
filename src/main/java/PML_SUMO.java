@@ -1,5 +1,5 @@
 /*
- * Find dots (PML) in nucleus DNA damages (Pierre)
+ * Find  PML and SUMO dots in nucleus (Pierre)
  * version 2 for each nucleus object crop image before 
  * Measure integrated intensity, nb of dots per nucleus 
  * Author Philippe Mailly
@@ -11,8 +11,6 @@ import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
 import static Tools.PML_Tools.computeGlobalNucParameters;
 import static Tools.PML_Tools.computeNucParameters;
-import static Tools.PML_Tools.dialog;
-import static Tools.PML_Tools.dialogUnits;
 import static Tools.PML_Tools.find_nucleus;
 import static Tools.PML_Tools.getPopFromImage;
 import ij.*;
@@ -39,26 +37,31 @@ import mcib3d.image3d.ImageHandler;
 import mcib3d.image3d.ImageInt;
 import mcib3d.geom.Object3D;
 import static Tools.PML_Tools.flush_close;
-import static Tools.PML_Tools.intFactor;
 import static Tools.PML_Tools.labelsObject;
 import static Tools.PML_Tools.median_filter;
 import static Tools.PML_Tools.objectsSizeFilter;
 import static Tools.PML_Tools.dotsDiffuse;
+import static Tools.PML_Tools.findColoc;
+import static Tools.PML_Tools.intFactor;
 import static Tools.PML_Tools.randomColorPop;
 import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
 import static Tools.PML_Tools.watershed;
+import fiji.util.gui.GenericDialogPlus;
 import ij.gui.Roi;
-import ij.gui.WaitForUserDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
+import java.awt.Color;
+import java.awt.Font;
+import java.util.ArrayList;
 import java.util.Arrays;
 import loci.plugins.BF;
 import loci.plugins.in.ImporterOptions;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang.ArrayUtils;
 
 
-public class PML_DNA implements PlugIn {
+public class PML_SUMO implements PlugIn {
 
     private final boolean canceled = false;
     private String imageDir = "";
@@ -84,6 +87,41 @@ public class PML_DNA implements PlugIn {
     
 
     /**
+     * Dialog ask for channels order
+     * @param channels
+     * @param showCal
+     * @param cal
+     * @return ch;
+
+     */
+    public ArrayList dialog(String[] channels, boolean showCal, Calibration cal) {
+        ArrayList ch = new ArrayList();
+        GenericDialogPlus gd = new GenericDialogPlus("Parameters");
+        gd.addMessage("Channels", Font.getFont("Monospace"), Color.blue);
+        gd.addChoice("DAPI       : ", channels, channels[0]);
+        gd.addChoice("PML        : ", channels, channels[1]);
+        gd.addChoice("SUMO       : ", channels, channels[2]);
+        gd.addNumericField("Threshold above diffuse PML intensity : ", intFactor, 2);
+        if (showCal) {
+            gd.addMessage("No Z step calibration found", Font.getFont("Monospace"), Color.red);
+            gd.addNumericField("XY pixel size : ", cal.pixelWidth, 3);
+            gd.addNumericField("Z pixel size : ", zStep, 3);
+        }
+        gd.showDialog();
+        ch.add(0, gd.getNextChoice());
+        ch.add(1, gd.getNextChoice());
+        ch.add(2, gd.getNextChoice());
+        if (showCal) {
+            cal.pixelWidth = gd.getNextNumber();
+            cal.pixelDepth = gd.getNextNumber();
+        }
+        
+        if(gd.wasCanceled())
+            ch = null;
+        return(ch);
+    }
+    
+    /**
      * 
      * @param arg
      */
@@ -94,7 +132,7 @@ public class PML_DNA implements PlugIn {
                 IJ.showMessage(" Pluging canceled");
                 return;
             }
-            imageDir = dialog();
+            imageDir = IJ.getDirectory("Choose Directory Containing Image Files...");
             if (imageDir == null) {
                 return;
             }
@@ -114,34 +152,32 @@ public class PML_DNA implements PlugIn {
              * Write headers results for results file
              */
             // Global file for PML results
-            String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+            String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+".xls";
             String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
                     + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
                     + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance"
-                    + "\tPML dot Mean center-Nucleus border distance\tPML dot SD center-Nucleus border distance\n";
+                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Coloc\n";
             BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
             
-            // Global file for DNA results
-            resultsName = "GlobalNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tDNA dot number\tDNA Total IntDensity"
-                    + "\tDNA Diffuse IntDensity\tDNA Mean dot IntDensity\tDNA dot SD IntDensity\tDNA dot Min IntDensity"
-                    + "\tDNA dot Max IntDensity\tDNA dot Mean Volume\tDNA dot SD Volume\tDNA Min Vol\tDNA Max Vol"
-                    + "\tDNA Sum Vol\tDNA dot Mean center-center distance\tDNA dot SD center-center distance"
-                    + "\tDNA dot Mean center-Nucleus border distance\tDNA dot SD center-Nucleus border distance\n";
-            BufferedWriter outPutDNAResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
+            // Global file for SUMO results
+            resultsName = "GlobalNucleusSUMOResults_Int-"+intFactor+".xls";
+            header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tSUMO dot number\tSUMO Total IntDensity"
+                    + "\tSUMO Diffuse IntDensity\tSUMO Mean dot IntDensity\tSUMO dot SD IntDensity\tSUMO dot Min IntDensity"
+                    + "\tSUMO dot Max IntDensity\tSUMO dot Mean Volume\tSUMO dot SD Volume\tSUMO Min Vol\tSUMO Max Vol"
+                    + "\tSUMO Sum Vol\tSUMO dot Mean center-center distance\tSUMO dot SD center-center distance\tSUMO Coloc\n";
+            BufferedWriter outPutSUMOResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
 
             // Detailled parameters for PML results
-            resultsName = "DetailledNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+            resultsName = "DetailledNucleusPMLResults_Int-"+".xls";
             header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
                     + "\tPML dot center-center distance\n";
             BufferedWriter outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
             
-            // Detailled parameters for DNA results
-            resultsName = "DetailledNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#DNA dot\tDNA dot IntDensity\tDNA dot Volume\t"
-                    + "DNA dot center-center distance\n";
-            BufferedWriter outPutDNAResultsDetail = writeHeaders(outDirResults, resultsName, header);
+            // Detailled parameters for SUMO results
+            resultsName = "DetailledNucleusSUMOResults_Int-"+".xls";
+            header = "ImageName\t#Nucleus\tNucleus Volume\t#SUMO dot\tSUMO dot IntDensity\tSUMO dot Volume\t"
+                    + "SUMO dot center-center distance\n";
+            BufferedWriter outPutSUMOResultsDetail = writeHeaders(outDirResults, resultsName, header);
             
             // create OME-XML metadata store of the latest schema version
             ServiceFactory factory;
@@ -156,13 +192,19 @@ public class PML_DNA implements PlugIn {
             String imageName = "";
             String rootName = "";
             String seriesName = "";
+            ArrayList<String> ch = new ArrayList();
             for (int i = 0; i < imageFile.length; i++) {
                 String fileExt = FilenameUtils.getExtension(imageFile[i]);
-                if (fileExt.equals("nd")) {
+                if (fileExt.equals("czi")) {
                     imageName = inDir+ File.separator+imageFile[i];
-                    rootName = imageFile[i].replace(".nd", "");
+                    rootName = imageFile[i].replace(".czi", "");
                     imageNum++;
+                    boolean showCal = false;
                     reader.setId(imageName);
+                    int chNb = reader.getSizeC();
+                    String[] channels = new String[chNb];
+                    for (int c = 0; c < chNb; c++) 
+                        channels[c] = meta.getChannelFluor(0, c);
                     // Check calibration
                     if (imageNum == 1) {
                         series = 0;
@@ -171,17 +213,25 @@ public class PML_DNA implements PlugIn {
                         if (meta.getPixelsPhysicalSizeZ(series) != null)
                             cal.pixelDepth = meta.getPixelsPhysicalSizeZ(series).value().doubleValue();
                         else
-                            cal.pixelDepth = dialogUnits(zStep);
-                        if (cal.pixelDepth == 0)
+                            showCal= true;
+                        if (zStep == 0)
                             return;
                         cal.setUnit("microns");
                         System.out.println("x cal = " +cal.pixelWidth+", z cal=" + cal.pixelDepth);
+                        
+                        // return the index for channels DAPI, Astro, Dots and ask for calibration if needed 
+                        ch = dialog(channels, showCal, cal);
+
+                        if (ch == null) {
+                            IJ.showStatus("Plugin cancelled !!!");
+                            return;
+                        }
                     }
 
                     series = reader.getSeriesCount();  
                     for (int s = 0; s < series; s++) {
                         reader.setSeries(s);
-                        //seriesName = meta.getImageName(s);
+                        seriesName = meta.getImageName(s);
 
                         ImporterOptions options = new ImporterOptions();
                         options.setColorMode(ImporterOptions.COLOR_MODE_GRAYSCALE);
@@ -193,11 +243,11 @@ public class PML_DNA implements PlugIn {
                         /*
                         * Open DAPI channel
                         */
-                        int dapiCh = 0;                        
-                        options.setCBegin(s, dapiCh);
-                        options.setCEnd(s, dapiCh);
+                        int channelIndex = ArrayUtils.indexOf(channels, ch.get(0));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
                         System.out.println("-- Series : "+ seriesName);
-                        System.out.println("Opening Nucleus channel");
+                        System.out.println("Opening Nucleus channel "+ ch.get(0));
                         ImagePlus imgNuc= BF.openImagePlus(options)[0];
                         
                         Objects3DPopulation nucPop = new Objects3DPopulation();
@@ -216,23 +266,23 @@ public class PML_DNA implements PlugIn {
                         imhNuc.closeImagePlus();
                         flush_close(imgNuc);
 
-                        // Open Orginal PML channel to read dot intensity
-                        int pmlCh = 1;
-                        System.out.println("Opening PML original channel");
-                        options.setCBegin(s, pmlCh);
-                        options.setCEnd(s, pmlCh);
+                        // Open Original PML channel to read dot intensity
+                        channelIndex = ArrayUtils.indexOf(channels, ch.get(1));
+                        System.out.println("Opening PML original channel"+ch.get(1));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
                         ImagePlus imgPMLOrg = BF.openImagePlus(options)[0];
                         
                         // For all nucleus crop image
-                        // Find PML in nucleus and DNA fragmentation
+                        // Find PML and SUMO dots in nucleus
                         int nucIndex = 0;
                         
-                        // Open DNA channel 
-                        int dnaCh = 2;
-                        System.out.println("Opening dna channel");
-                        options.setCBegin(s, dnaCh);
-                        options.setCEnd(s, dnaCh);
-                        ImagePlus imgDNAOrg = BF.openImagePlus(options)[0];
+                        // Open SUMO channel 
+                        channelIndex = ArrayUtils.indexOf(channels, ch.get(2));
+                        System.out.println("Opening SUMO channel"+ch.get(2));
+                        options.setCBegin(s, channelIndex);
+                        options.setCEnd(s, channelIndex);
+                        ImagePlus imgSUMOOrg = BF.openImagePlus(options)[0];
                         
                         for (int n = 0; n < totalNucPop; n++) {
                             nucIndex++;
@@ -243,6 +293,7 @@ public class PML_DNA implements PlugIn {
                             
                             int[] box = nucObj.getBoundingBox();
                             Roi roiBox = new Roi(box[0], box[2], box[1] - box[0], box[3] - box[2]);
+                            
                             // Crop PML image
                             imgPMLOrg.setRoi(roiBox);
                             imgPMLOrg.updateAndDraw();
@@ -273,69 +324,76 @@ public class PML_DNA implements PlugIn {
                              // intensity filter
                             ObjectsIntFilter(nucleusObj, pmlNucPop, imgPMLCrop);
                             System.out.println("Nucleus "+nucIndex+" PML after intensity filter = "+pmlNucPop.getNbObjects());
+                            
                             // Find PML diffus intensity on pml filtered intensity
                             dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, true);
                             // save diffuse image
                             //saveDiffuseImage(pmlNucPop, nucObj, imgPMLCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex);
-                            
                             // add pml number to Nucleus
                             nucleusObj.setDots1(pmlNucPop.getNbObjects());
+                            
+                            // Compute detailed PML parameters 
+                            computeNucParameters(nucleusObj, pmlNucPop, imgPMLCrop, rootName+seriesName, outPutPMLResultsDetail);
+                        
+                            /*
+                                Find SUMO dots in nucleus and compute diffuse and total intensity
+                            */
+                            // Crop SUMO image
+                            imgSUMOOrg.setRoi(roiBox);
+                            imgSUMOOrg.updateAndDraw();
+                            ImagePlus imgSUMOCrop = new Duplicator().run(imgSUMOOrg, ZStartNuc, ZStopNuc);
+                            imgSUMOCrop.deleteRoi();
+                            imgSUMOCrop.updateAndDraw();
+                            ImagePlus imgSUMOCropDup = imgSUMOCrop.duplicate();
+                            
+                            IJ.run(imgSUMOCropDup, "Difference of Gaussians", " sigma1=3 sigma2=1 stack");
+                            threshold(imgSUMOCropDup, AutoThresholder.Method.RenyiEntropy, false, false);
+
+                            Objects3DPopulation SumoPop = getPopFromImage(imgSUMOCropDup, cal);
+                            objectsSizeFilter(minPML, maxPML, SumoPop, imgSUMOCropDup, false); 
+                            System.out.println("SUMO pop after size filter = "+ SumoPop.getNbObjects());
+                            // Find Sumo in nucleus
+                            Objects3DPopulation sumoNucPop = coloc(nucObj, SumoPop);
+                            System.out.println("Nucleus "+nucIndex+" SUMO = "+sumoNucPop.getNbObjects());
+                            
+                            // pre-processing SUMO diffus image intensity 
+                            dotsDiffuse(sumoNucPop, nucleusObj, imgSUMOCrop, false);
+                             // intensity filter
+                            ObjectsIntFilter(nucleusObj, sumoNucPop, imgSUMOCrop);
+                            System.out.println("Nucleus "+nucIndex+" SUMO after intensity filter = "+sumoNucPop.getNbObjects());
+                            // Find SUMO diffus intensity on SUMO filtered intensity
+                            dotsDiffuse(sumoNucPop, nucleusObj, imgSUMOCrop, true);
+                            // save diffuse image
+                            //saveDiffuseImage(sumoNucPop, nucObj, imgSUMOCrop, outDirResults, rootName, seriesName, "SUMO_Diffuse", nucIndex) ;
+                            // add Sumo number to Nucleus
+                            nucleusObj.setDots2(sumoNucPop.getNbObjects());
+                            
+                            // Compute detailled DNA parameters
+                            computeNucParameters(nucleusObj, sumoNucPop, imgSUMOCrop, rootName+seriesName+"_DNA", outPutSUMOResultsDetail);
+                                          
+                            // Find colocalization in PML and SUMO populations
+                            findColoc(nucleusObj, pmlNucPop, sumoNucPop);
+                            
                             // Compute global PML parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume 
                             IJ.showStatus("Writing parameters ...");
                             computeGlobalNucParameters(nucleusObj, "pml", pmlNucPop, imgPMLCrop, rootName+seriesName+"_PML", outPutPMLResultsGlobal);
-                            // Compute detalled PML parameters 
-                            computeNucParameters(nucleusObj, pmlNucPop, imgPMLCrop, rootName+seriesName, outPutPMLResultsDetail);
-                        
-                            /*
-                                Find dna fragmentation in nucleus and compute diffuse intensity
-                            */
-                            // Crop DNA image
-                            imgDNAOrg.setRoi(roiBox);
-                            imgDNAOrg.updateAndDraw();
-                            ImagePlus imgDNACrop = new Duplicator().run(imgDNAOrg, ZStartNuc, ZStopNuc);
-                            imgDNACrop.deleteRoi();
-                            imgDNACrop.updateAndDraw();
-                            ImagePlus imgDNACropDup = imgDNACrop.duplicate();
                             
-                            IJ.run(imgDNACropDup, "Difference of Gaussians", " sigma1=3 sigma2=1 stack");
-                            threshold(imgDNACropDup, AutoThresholder.Method.IJ_IsoData, false, false);
-
-                            Objects3DPopulation dnaPop = getPopFromImage(imgDNACropDup, cal);
-                            objectsSizeFilter(minPML, maxPML, dnaPop, imgDNACropDup, false); 
-                            System.out.println("DNA pop after size filter = "+ dnaPop.getNbObjects());
-                            // Find dna in nucleus
-                            Objects3DPopulation dnaNucPop = coloc(nucObj, dnaPop);
-                            System.out.println("Nucleus "+nucIndex+" DNA = "+dnaNucPop.getNbObjects());
-                            
-                            // pre-processing DNA diffus image intensity 
-                            //dotsDiffuse(dnaNucPop, nucObj, imgDNACrop, false);
-                             // intensity filter
-                            //ObjectsIntFilter(nucObj, dnaNucPop, imgDNACrop);
-                            //System.out.println("Nucleus "+nucIndex+" DNA after intensity filter = "+dnaNucPop.getNbObjects());
-                            // Find DNA diffus intensity on DNA filtered intensity
-                            dotsDiffuse(dnaNucPop, nucleusObj, imgDNACrop, true);
-                            // save diffuse image
-                            saveDiffuseImage(dnaNucPop, nucObj, imgDNACrop, outDirResults, rootName, seriesName, "DNA_Diffuse", nucIndex) ;
-                            // add dna number to Nucleus
-                            nucleusObj.setDots2(dnaNucPop.getNbObjects());
                             // Compute global DNA parameters                        
                             // nucleus volume, nb of DNA, mean DNAL intensity, mean DNA volume 
                             IJ.showStatus("Writing parameters ...");
-                            computeGlobalNucParameters(nucleusObj, "dna", dnaNucPop, imgDNACrop, rootName+seriesName, outPutDNAResultsGlobal);
-                            // Compute detailled DNA parameters
-                            computeNucParameters(nucleusObj, dnaNucPop, imgDNACrop, rootName+seriesName+"_DNA", outPutDNAResultsDetail);
+                            computeGlobalNucParameters(nucleusObj, "sumo", sumoNucPop, imgSUMOCrop, rootName+seriesName, outPutSUMOResultsGlobal);
                             
                             // Save objects image
                             String nucNumber = String.format("%03d", nucIndex);
                             ImageHandler imhPMLObjects = ImageHandler.wrap(imgPMLCrop).createSameDimensions();
                             ImageHandler imhNucObjects = imhPMLObjects.duplicate();
-                            ImageHandler imhDNAObjects = imhPMLObjects.duplicate();
+                            ImageHandler imhSUMOObjects = imhPMLObjects.duplicate();
                             pmlNucPop.draw(imhPMLObjects, 255);
-                            dnaNucPop.draw(imhDNAObjects, 255);
+                            sumoNucPop.draw(imhSUMOObjects, 255);
                             nucObj.draw(imhNucObjects, 255);
                             labelsObject(nucObj, imhNucObjects.getImagePlus(), nucIndex, 255);
-                            ImagePlus[] imgColors = {imhDNAObjects.getImagePlus(), imhPMLObjects.getImagePlus(), imhNucObjects.getImagePlus()};
+                            ImagePlus[] imgColors = {imhSUMOObjects.getImagePlus(), imhPMLObjects.getImagePlus(), imhNucObjects.getImagePlus()};
                             ImagePlus imgObjects = new RGBStackMerge().mergeHyperstacks(imgColors, false);
                             imgObjects.setCalibration(cal);
                             IJ.run(imgObjects, "Enhance Contrast", "saturated=0.35");
@@ -343,14 +401,14 @@ public class PML_DNA implements PlugIn {
                             ImgObjectsFile.saveAsTiff(outDirResults + rootName + "_" + seriesName + "-Nuc" + nucNumber + "_PML_Objects.tif");
                             flush_close(imgObjects);
                             flush_close(imhPMLObjects.getImagePlus());
-                            flush_close(imhDNAObjects.getImagePlus());
+                            flush_close(imhSUMOObjects.getImagePlus());
                             flush_close(imhNucObjects.getImagePlus());
                             flush_close(imgPMLCropDup);
                             flush_close(imgPMLCrop);
-                            flush_close(imgDNACrop);
+                            flush_close(imgSUMOCrop);
                         }
                         flush_close(imgPMLOrg);
-                        flush_close(imgDNAOrg);
+                        flush_close(imgSUMOOrg);
                         options.setSeriesOn(s, false);
                     }
                 }
@@ -358,8 +416,8 @@ public class PML_DNA implements PlugIn {
             try {
                 outPutPMLResultsGlobal.close();
                 outPutPMLResultsDetail.close();
-                outPutDNAResultsGlobal.close();
-                outPutDNAResultsDetail.close();
+                outPutSUMOResultsGlobal.close();
+                outPutSUMOResultsDetail.close();
             } catch (IOException ex) {
                 Logger.getLogger(PML_ES_NPM1C.class.getName()).log(Level.SEVERE, null, ex);
             }

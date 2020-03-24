@@ -17,18 +17,36 @@ public class Nucleus {
     private double vol;
     private double sphericity;
     private double diffuseInt;
-    private int pml;
-    private int dna;
+    private double totalInt;
+    private int dots1;
+    private int dots2;
+    private double colocDots1;  // % of dots1 volume colocalize with dots2 population
+    private double colocDots2;  // % of dots2 volume colocalize with dots1 population
    
-	
-	public Nucleus(Object3D nucObj, int index, double vol, double sphericity, double diffuseInt, int pml, int dna) {
+	/**
+         * 
+         * @param nucObj
+         * @param index
+         * @param vol
+         * @param sphericity
+         * @param totalInt
+         * @param diffuseInt
+         * @param dots1 pml
+         * @param dots2 dna or sumo 
+         * @param colocDots1
+         * @param colocDost2
+         */
+	public Nucleus(Object3D nucObj, int index, double vol, double sphericity, double totalInt, double diffuseInt,
+                int dots1, int dots2, double colocDots1, double colocDots2) {
             this.nucObj = nucObj;
             this.index = index;
             this.vol = vol;
             this.sphericity = sphericity;
             this.diffuseInt = diffuseInt;
-            this.pml = pml;
-            this.dna = dna;
+            this.dots1 = dots1;
+            this.dots2 = dots2;
+            this.colocDots1 = colocDots1;
+            this.colocDots2 = colocDots2;
 	}
         
          public void setObj(Object3D nucObj) {
@@ -51,12 +69,24 @@ public class Nucleus {
 		this.diffuseInt = diffuseInt;
 	}
         
-        public void setPML(int pml) {
-		this.pml = pml;
+        public void setTotalInt(double totalInt) {
+		this.totalInt = totalInt;
 	}
         
-        public void setDNA(int dna) {
-		this.dna = dna;
+        public void setDots1(int dots1) {
+		this.dots1 = dots1;
+	}
+        
+        public void setDots2(int dots2) {
+		this.dots2 = dots2;
+	}
+        
+        public void setColocDots1(double colocDots1) {
+		this.colocDots1 = colocDots1;
+	}
+        
+        public void setColocDots2(double colocDots2) {
+		this.colocDots2 = colocDots2;
 	}
         
         public Object3D getObj() {
@@ -79,12 +109,23 @@ public class Nucleus {
             return(diffuseInt);
         }
         
-        public int getPML() {
-            return pml;
+        public double getTotalInt() {
+            return(totalInt);
         }
         
-	public int getDNA() {
-		return dna;
+        public int getDots1() {
+            return dots1;
+        }
+        
+	public int getDots2() {
+		return dots2;
 	}
         
+        public double getColocDots1() {
+		return colocDots1;
+	}
+        
+        public double getColocDots2() {
+		return colocDots2;
+	}
 }

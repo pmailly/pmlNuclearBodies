@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import static java.lang.Double.parseDouble;
+import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -38,6 +39,8 @@ import mcib3d.geom.Object3D;
 import mcib3d.geom.Object3DVoxels;
 import mcib3d.geom.Object3D_IJUtils;
 import mcib3d.geom.Objects3DPopulation;
+import mcib3d.geom.Objects3DPopulationColocalisation;
+import mcib3d.geom.PairColocalisation;
 import mcib3d.geom.Point3D;
 import mcib3d.image3d.ImageFloat;
 import mcib3d.image3d.ImageHandler;
@@ -326,6 +329,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         }
         // put in nucleus object diffus intensity 
         nuc.setDiffuse(dotsIntDiffuse);
+        nuc.setTotalInt(nuc.getObj().getIntegratedDensity(ImageHandler.wrap(imgDots)));
         imhDotsDiffuse.closeImagePlus();
 
     }
@@ -399,6 +403,21 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
             }
         }
         return(dotsInNuc);
+    }
+    
+    /**
+     * Get % of volume of coloc dost1 and dots2
+     * @param nuc
+     * @param dots1
+     * @param dots2 
+     */
+    public static void findColoc(Nucleus nuc, Objects3DPopulation dots1, Objects3DPopulation dots2) {
+        Objects3DPopulationColocalisation coloc = new Objects3DPopulationColocalisation(dots1, dots2);
+        ArrayList<PairColocalisation> pairColoc = coloc.getAllColocalisationPairs();
+        int volColocDots1 = pairColoc.get(0).getVolumeColoc();
+        int volColocDots2 = pairColoc.get(1).getVolumeColoc();
+        nuc.setColocDots1(volColocDots1/100);
+        nuc.setColocDots2(volColocDots2/100);
     }
     
     
@@ -791,19 +810,25 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double dotsMinDistCenterMean = Double.NaN;
         double dotsMinDistCenterSD = Double.NaN;
         int dotsNuc = 0;
-        if (dots.equals("pml"))
-                dotsNuc = nuc.getPML();
-        else
-             dotsNuc = nuc.getDNA();
+        double dotsVolColoc = 0;
+        if (dots.equals("pml")) {
+                dotsNuc = nuc.getDots1();
+                dotsVolColoc = nuc.getColocDots1();
+        }
+        else {
+             dotsNuc = nuc.getDots2();
+             dotsVolColoc = nuc.getColocDots2();
+        }
         double nucVolume = nuc.getVol();
         double nucShericity = nuc.getSphericity();
+        double nucTotalPMLInt = nuc.getTotalInt();
         
-            for (int p = 0; p < dotsNuc; p++) {
-                Object3D dotsObj = dotsPop.getObject(p);
-                dotsIntensity.addValue(dotsObj.getIntegratedDensity(imhPML));
-                dotsVolume.addValue(dotsObj.getVolumeUnit());
-                //dotsMinDistBorder.addValue(dotsObj.distCenterBorderUnit(nucObj));
-            }
+        for (int p = 0; p < dotsNuc; p++) {
+            Object3D dotsObj = dotsPop.getObject(p);
+            dotsIntensity.addValue(dotsObj.getIntegratedDensity(imhPML));
+            dotsVolume.addValue(dotsObj.getVolumeUnit());
+            //dotsMinDistBorder.addValue(dotsObj.distCenterBorderUnit(nucObj));
+        }
 
         if (dotsPop.getNbObjects() > 2) {
             dotsMinDistCenterMean = dotsPop.distancesAllClosestCenter().getMean(); 
@@ -821,9 +846,10 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double dotsVolumeSum = dotsVolume.getSum();
         double dotsMinDistBorderMean = dotsMinDistBorder.getMean();
         double dotsMinDistBorderSD = dotsMinDistBorder.getStandardDeviation();
-        results.write(imgName+"\t"+nuc.getIndex()+"\t"+nucVolume+"\t"+nucShericity+"\t"+dotsNuc+"\t"+nuc.getDiffuse()+"\t"+dotsIntMean+"\t"+
-                dotsIntSD+"\t"+dotsIntMin+"\t"+dotsIntMax+"\t"+dotsVolumeMean+"\t"+dotsVolumeSD+"\t"+dotsVolumeMin+"\t"+dotsVolumeMax+"\t"+dotsVolumeSum+"\t"+
-                dotsMinDistCenterMean+"\t"+ dotsMinDistCenterSD+"\t"+ dotsMinDistBorderMean+"\t"+ dotsMinDistBorderSD+"\n");
+        results.write(imgName+"\t"+nuc.getIndex()+"\t"+nucVolume+"\t"+nucShericity+"\t"+dotsNuc+"\t"+nuc.getDiffuse()+"\t"+
+                nucTotalPMLInt+"\t"+dotsIntMean+"\t"+dotsIntSD+"\t"+dotsIntMin+"\t"+dotsIntMax+"\t"+dotsVolumeMean+"\t"+
+                dotsVolumeSD+"\t"+dotsVolumeMin+"\t"+dotsVolumeMax+"\t"+dotsVolumeSum+"\t"+dotsMinDistCenterMean+"\t"+
+                dotsMinDistCenterSD+"\t"+ dotsMinDistBorderMean+"\t"+ dotsMinDistBorderSD+"\t"+dotsVolColoc+"\n");
         results.flush();
     }
     

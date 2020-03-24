@@ -83,7 +83,7 @@ public class PML_ES_NPM1C implements PlugIn {
     private final double zStep = 0.153;
 
 // Nucleus     
-    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);  
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);  
     
     public static boolean segMethod = false; 
 
@@ -300,7 +300,7 @@ public class PML_ES_NPM1C implements PlugIn {
                             ImagePlus imgDotsCropDup = imgPMLCrop.duplicate();
                             nucObj.translate(-nucObj.getXmin(), -nucObj.getYmin(), -ZStartNuc + 1);
                             Nucleus nucleusObj = new Nucleus(nucObj, nucIndex, nucObj.getVolumeUnit(), nucObj.getSphericity(true),
-                                    0, 0, 0);
+                                    0, 0, 0, 0, 0, 0);
                             // Crop mut image
                             imgMutOrg.setRoi(roiBox);
                             imgMutOrg.updateAndDraw();
@@ -328,7 +328,7 @@ public class PML_ES_NPM1C implements PlugIn {
                             // Find PML diffus intensity on pml filtered intensity
                             dotsDiffuse(pmlNucPop, nucleusObj, imgPMLCrop, true);
                             // save diffuse image
-                            saveDiffuseImage(pmlNucPop, nucObj, imgPMLCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
+                            //saveDiffuseImage(pmlNucPop, nucObj, imgPMLCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
                             // Compute parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume
                             IJ.showStatus("Writing parameters ...");
