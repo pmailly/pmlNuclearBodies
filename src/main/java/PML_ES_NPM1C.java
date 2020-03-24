@@ -103,7 +103,7 @@ public class PML_ES_NPM1C implements PlugIn {
         gd.addMessage("Channels", Font.getFont("Monospace"), Color.blue);
         gd.addChoice("DAPI       : ", channels, channels[0]);
         gd.addChoice("PML        : ", channels, channels[1]);
-        gd.addChoice("SUMO/NPM1C : ", channels, channels[2]);
+        gd.addChoice("NPM1C : ", channels, channels[2]);
         gd.addNumericField("Threshold above diffuse PML intensity : ", intFactor, 2);
         gd.addCheckbox(" WaterShed split", watershed);
         gd.addCheckbox(" DOG nucleus segmentation method", segMethod);
