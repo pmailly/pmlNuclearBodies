@@ -142,7 +142,7 @@ public class PML_SUMO implements PlugIn {
                 return;
             }
             // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
+            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
             File outDir = new File(outDirResults);
             if (!Files.exists(Paths.get(outDirResults))) {
                 outDir.mkdir();
@@ -156,7 +156,7 @@ public class PML_SUMO implements PlugIn {
             String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
                     + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
                     + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Coloc\n";
+                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
             BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
             
             // Global file for SUMO results
@@ -164,7 +164,7 @@ public class PML_SUMO implements PlugIn {
             header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tSUMO dot number\tSUMO Total IntDensity"
                     + "\tSUMO Diffuse IntDensity\tSUMO Mean dot IntDensity\tSUMO dot SD IntDensity\tSUMO dot Min IntDensity"
                     + "\tSUMO dot Max IntDensity\tSUMO dot Mean Volume\tSUMO dot SD Volume\tSUMO Min Vol\tSUMO Max Vol"
-                    + "\tSUMO Sum Vol\tSUMO dot Mean center-center distance\tSUMO dot SD center-center distance\tSUMO Coloc\n";
+                    + "\tSUMO Sum Vol\tSUMO dot Mean center-center distance\tSUMO dot SD center-center distance\tSUMO Volume Coloc\n";
             BufferedWriter outPutSUMOResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
 
             // Detailled parameters for PML results

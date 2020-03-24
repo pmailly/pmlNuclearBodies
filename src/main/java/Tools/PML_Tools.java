@@ -734,7 +734,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
 
         results.write(imgName+"\t"+nucIndex+"\t"+nucVolume+"\t"+nucIntMut+"\t"+nucShericity+"\t"+pmlNuc+"\t"+nucIntDiffuse+"\t"+pmlIntMean+"\t"+
                 pmlIntSD+"\t"+pmlIntMin+"\t"+pmlIntMax+"\t"+pmlVolumeMean+"\t"+pmlVolumeSD+"\t"+pmlVolumeMin+"\t"+pmlVolumeMax+"\t"+pmlVolumeSum+"\t"+
-                minDistCenterMean+"\t"+minDistCenterSD+"\t"+minDistBorderMean+"\t"+minDistBorderSD+"\t"+sdiF+"\n");
+                minDistCenterMean+"\t"+minDistCenterSD+"\t"+minDistBorderMean+"\t"+minDistBorderSD+"\n");
         results.flush();
     }
     
@@ -806,7 +806,6 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         // measure dots integrated intensity and volume
         DescriptiveStatistics dotsIntensity = new DescriptiveStatistics();
         DescriptiveStatistics dotsVolume = new DescriptiveStatistics();
-        DescriptiveStatistics dotsMinDistBorder = new DescriptiveStatistics();
         double dotsMinDistCenterMean = Double.NaN;
         double dotsMinDistCenterSD = Double.NaN;
         int dotsNuc = 0;
@@ -827,7 +826,6 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
             Object3D dotsObj = dotsPop.getObject(p);
             dotsIntensity.addValue(dotsObj.getIntegratedDensity(imhPML));
             dotsVolume.addValue(dotsObj.getVolumeUnit());
-            //dotsMinDistBorder.addValue(dotsObj.distCenterBorderUnit(nucObj));
         }
 
         if (dotsPop.getNbObjects() > 2) {
@@ -844,12 +842,10 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
         double dotsVolumeMin = dotsVolume.getMin();
         double dotsVolumeMax = dotsVolume.getMax();
         double dotsVolumeSum = dotsVolume.getSum();
-        double dotsMinDistBorderMean = dotsMinDistBorder.getMean();
-        double dotsMinDistBorderSD = dotsMinDistBorder.getStandardDeviation();
         results.write(imgName+"\t"+nuc.getIndex()+"\t"+nucVolume+"\t"+nucShericity+"\t"+dotsNuc+"\t"+nuc.getDiffuse()+"\t"+
                 nucTotalPMLInt+"\t"+dotsIntMean+"\t"+dotsIntSD+"\t"+dotsIntMin+"\t"+dotsIntMax+"\t"+dotsVolumeMean+"\t"+
                 dotsVolumeSD+"\t"+dotsVolumeMin+"\t"+dotsVolumeMax+"\t"+dotsVolumeSum+"\t"+dotsMinDistCenterMean+"\t"+
-                dotsMinDistCenterSD+"\t"+ dotsMinDistBorderMean+"\t"+ dotsMinDistBorderSD+"\t"+dotsVolColoc+"\n");
+                dotsMinDistCenterSD+"\t"+dotsVolColoc+"\n");
         results.flush();
     }
     

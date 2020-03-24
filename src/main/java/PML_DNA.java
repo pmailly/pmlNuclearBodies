@@ -104,7 +104,7 @@ public class PML_DNA implements PlugIn {
                 return;
             }
             // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
+            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
             File outDir = new File(outDirResults);
             if (!Files.exists(Paths.get(outDirResults))) {
                 outDir.mkdir();
@@ -118,8 +118,7 @@ public class PML_DNA implements PlugIn {
             String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
                     + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
                     + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance"
-                    + "\tPML dot Mean center-Nucleus border distance\tPML dot SD center-Nucleus border distance\n";
+                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
             BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
             
             // Global file for DNA results
@@ -127,8 +126,7 @@ public class PML_DNA implements PlugIn {
             header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tDNA dot number\tDNA Total IntDensity"
                     + "\tDNA Diffuse IntDensity\tDNA Mean dot IntDensity\tDNA dot SD IntDensity\tDNA dot Min IntDensity"
                     + "\tDNA dot Max IntDensity\tDNA dot Mean Volume\tDNA dot SD Volume\tDNA Min Vol\tDNA Max Vol"
-                    + "\tDNA Sum Vol\tDNA dot Mean center-center distance\tDNA dot SD center-center distance"
-                    + "\tDNA dot Mean center-Nucleus border distance\tDNA dot SD center-Nucleus border distance\n";
+                    + "\tDNA Sum Vol\tDNA dot Mean center-center distance\tDNA dot SD center-center distance\tDNA Volume Coloc\n";
             BufferedWriter outPutDNAResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
 
             // Detailled parameters for PML results
@@ -316,7 +314,7 @@ public class PML_DNA implements PlugIn {
                             // Find DNA diffus intensity on DNA filtered intensity
                             dotsDiffuse(dnaNucPop, nucleusObj, imgDNACrop, true);
                             // save diffuse image
-                            saveDiffuseImage(dnaNucPop, nucObj, imgDNACrop, outDirResults, rootName, seriesName, "DNA_Diffuse", nucIndex) ;
+                            //saveDiffuseImage(dnaNucPop, nucObj, imgDNACrop, outDirResults, rootName, seriesName, "DNA_Diffuse", nucIndex) ;
                             // add dna number to Nucleus
                             nucleusObj.setDots2(dnaNucPop.getNbObjects());
                             // Compute global DNA parameters                        

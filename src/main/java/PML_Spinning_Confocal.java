@@ -11,7 +11,6 @@ import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
 import static Tools.PML_Tools.computeGlobalNucParameters;
 import static Tools.PML_Tools.computeNucParameters;
-import static Tools.PML_Tools.computeNucParameters2;
 import static Tools.PML_Tools.dialog;
 import static Tools.PML_Tools.dialogUnits;
 import static Tools.PML_Tools.find_nucleus;
@@ -23,7 +22,6 @@ import ij.plugin.PlugIn;
 import ij.process.AutoThresholder;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -79,7 +77,7 @@ public class PML_Spinning_Confocal implements PlugIn {
 // Default Z step
     private final double zStep = 0.153;
 // Nucleus     
-    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0);    
+    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);    
 
       
 
@@ -94,7 +92,7 @@ public class PML_Spinning_Confocal implements PlugIn {
                 IJ.showMessage(" Pluging canceled");
                 return;
             }
-            imageDir = dialog(false);
+            imageDir = dialog();
             if (imageDir == null) {
                 return;
             }
@@ -116,11 +114,10 @@ public class PML_Spinning_Confocal implements PlugIn {
             
             // Global parameters
             String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Diffuse IntDensity"
-                    + "\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity\tPML dot Max IntDensity"
-                    + "\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol\tPML Sum Vol"
-                    + "\tPML dot Mean center-center distance\tPML dot SD center-center distance"
-                    + "\tPML dot Mean center-Nucleus border distance\tPML dot SD center-Nucleus border distance\n";
+            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
+                    + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
+                    + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
+                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
             BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header);  
             
             // Detailled parameters
@@ -256,19 +253,16 @@ public class PML_Spinning_Confocal implements PlugIn {
                             ImagePlus imgDotsCropDup = imgDotsCrop.duplicate();
                             nucObj.translate(-nucObj.getXmin(), -nucObj.getYmin(), -ZStartNuc + 1);
                             Nucleus nucleusObj = new Nucleus(nucObj, nucIndex, nucObj.getVolumeUnit(), nucObj.getSphericity(true),
-                                    0, 0, 0);
+                                    0, 0, 0, 0, 0, 0);
                             
                             // Detect dots
                             median_filter(imgDotsCropDup, 1);
-                            IJ.run(imgDotsCropDup, "Difference of Gaussians", "  sigma1=4 sigma2=1 stack");
-                            if (imageType.equals("lif")) {
-                                IJ.run(imgDotsCropDup, "Difference of Gaussians", "  sigma1=4 sigma2=2 stack");
+                            IJ.run(imgDotsCropDup, "Difference of Gaussians", "  sigma1=3 sigma2=1 stack");
+                            if (imageType.equals("lif"))
                                 threshold(imgDotsCropDup, AutoThresholder.Method.Triangle, false, true);
-                            }
-                            else {
-                                IJ.run(imgDotsCropDup, "Difference of Gaussians", "  sigma1=4 sigma2=1 stack");
+                            else
                                 threshold(imgDotsCropDup, AutoThresholder.Method.RenyiEntropy, false, true);
-                            }
+                            
                             Objects3DPopulation pmlPop = getPopFromImage(imgDotsCropDup, cal);
                             objectsSizeFilter(minPML, maxPML, pmlPop,imgDotsCropDup, false); 
                             System.out.println("PML pop after size filter = "+ pmlPop.getNbObjects());
@@ -284,7 +278,9 @@ public class PML_Spinning_Confocal implements PlugIn {
                             // Find PML diffus intensity on pml filtered intensity
                             dotsDiffuse(pmlNucPop, nucleusObj, imgDotsCrop, true);
                             // save diffuse image
-                            saveDiffuseImage(pmlNucPop, nucObj, imgDotsCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
+                            //saveDiffuseImage(pmlNucPop, nucObj, imgDotsCrop, outDirResults, rootName, seriesName, "PML_Diffuse", nucIndex) ;
+                            nucleusObj.setDots1(pmlNucPop.getNbObjects());
+                            
                             // Compute parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume
                             IJ.showStatus("Writing parameters ...");
