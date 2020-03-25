@@ -8,8 +8,10 @@ import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.Plot;
 import ij.gui.Roi;
+import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
+import ij.measure.ResultsTable;
 import ij.plugin.GaussianBlur3D;
 import ij.plugin.filter.GaussianBlur;
 import ij.plugin.filter.RankFilters;
@@ -404,22 +406,27 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
     }
     
     /**
-     * Get % of volume of coloc dost1 and dots2
+     * Get coloc dost1 versus dots2
      * @param nuc
      * @param dots1
      * @param dots2 
+     * @param dot 
      */
-    public static void findColoc(Nucleus nuc, Objects3DPopulation dots1, Objects3DPopulation dots2) {
-        int volColocDots1 = 0;
-        int volColocDots2 = 0;
-        if (dots1.getNbObjects() != 0 || dots2.getNbObjects() != 0) {
-            Objects3DPopulationColocalisation coloc = new Objects3DPopulationColocalisation(dots1, dots2);
-            ArrayList<PairColocalisation> pairColoc = coloc.getAllColocalisationPairs();
-            volColocDots1 = pairColoc.get(0).getVolumeColoc();
-            volColocDots2 = pairColoc.get(1).getVolumeColoc();
+    public static void findColoc(Nucleus nuc, Objects3DPopulation dots1, Objects3DPopulation dots2, int dot) {
+        double coloc = 0;
+        double vol = 0;
+        for (int ob1 = 0; ob1 < dots1.getNbObjects(); ob1++)  {
+            Object3D obj1 = dots1.getObject(ob1);
+            vol += obj1.getVolumePixels();
+            for (int ob2 = 0; ob2 < dots2.getNbObjects(); ob2++)  {
+                Object3D obj2 = dots2.getObject(ob2);
+                coloc += obj1.getColoc(obj2);
+            }
         }
-        nuc.setColocDots1(volColocDots1/100);
-        nuc.setColocDots2(volColocDots2/100);
+        if (dot == 1)
+            nuc.setColocDots1((coloc/vol)*100);
+        else
+            nuc.setColocDots2((coloc/vol)*100);
     }
     
     
