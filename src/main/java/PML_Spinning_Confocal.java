@@ -79,7 +79,7 @@ public class PML_Spinning_Confocal implements PlugIn {
 // Nucleus     
     public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);    
 
-      
+    public BufferedWriter outPutPMLResultsGlobal, outPutPMLResultsDetail;   
 
     /**
      * 
@@ -101,30 +101,7 @@ public class PML_Spinning_Confocal implements PlugIn {
             if (imageFile == null) {
                 return;
             }
-            // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
-            File outDir = new File(outDirResults);
-            if (!Files.exists(Paths.get(outDirResults))) {
-                outDir.mkdir();
-            }
             
-            /**
-             * Write headers file
-             */
-            
-            // Global parameters
-            String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
-                    + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
-                    + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
-            BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header);  
-            
-            // Detailled parameters
-            resultsName = "DetailledNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
-                    + "\tPML dot center-center distance\n";
-            BufferedWriter outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);  
             
             // create OME-XML metadata store of the latest schema version
             ServiceFactory factory;
@@ -166,6 +143,31 @@ public class PML_Spinning_Confocal implements PlugIn {
                             return;
                         cal.setUnit("microns");
                         System.out.println("x cal = " +cal.pixelWidth+", z cal=" + cal.pixelDepth);
+                        
+                        // create output folder
+                        outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
+                        File outDir = new File(outDirResults);
+                        if (!Files.exists(Paths.get(outDirResults))) {
+                            outDir.mkdir();
+                        }
+
+                        /**
+                         * Write headers file
+                         */
+
+                        // Global parameters
+                        String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
+                                + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
+                                + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
+                                + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
+                        outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header);  
+
+                        // Detailled parameters
+                        resultsName = "DetailledNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
+                                + "\tPML dot center-center distance\n";
+                        outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);  
                     }
 
                     series = reader.getSeriesCount();  
