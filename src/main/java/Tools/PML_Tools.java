@@ -410,10 +410,14 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
      * @param dots2 
      */
     public static void findColoc(Nucleus nuc, Objects3DPopulation dots1, Objects3DPopulation dots2) {
-        Objects3DPopulationColocalisation coloc = new Objects3DPopulationColocalisation(dots1, dots2);
-        ArrayList<PairColocalisation> pairColoc = coloc.getAllColocalisationPairs();
-        int volColocDots1 = pairColoc.get(0).getVolumeColoc();
-        int volColocDots2 = pairColoc.get(1).getVolumeColoc();
+        int volColocDots1 = 0;
+        int volColocDots2 = 0;
+        if (dots1.getNbObjects() != 0 || dots2.getNbObjects() != 0) {
+            Objects3DPopulationColocalisation coloc = new Objects3DPopulationColocalisation(dots1, dots2);
+            ArrayList<PairColocalisation> pairColoc = coloc.getAllColocalisationPairs();
+            volColocDots1 = pairColoc.get(0).getVolumeColoc();
+            volColocDots2 = pairColoc.get(1).getVolumeColoc();
+        }
         nuc.setColocDots1(volColocDots1/100);
         nuc.setColocDots2(volColocDots2/100);
     }
