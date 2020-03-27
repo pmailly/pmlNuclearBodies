@@ -45,11 +45,9 @@ import static Tools.PML_Tools.median_filter;
 import static Tools.PML_Tools.objectsSizeFilter;
 import static Tools.PML_Tools.dotsDiffuse;
 import static Tools.PML_Tools.randomColorPop;
-import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
 import static Tools.PML_Tools.watershed;
 import ij.gui.Roi;
-import ij.gui.WaitForUserDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
 import java.util.Arrays;
@@ -81,7 +79,8 @@ public class PML_DNA implements PlugIn {
     public static double zStep = 0.193;
 // Nucleus     
     public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-    
+
+    public BufferedWriter outPutPMLResultsGlobal, outPutDNAResultsGlobal, outPutPMLResultsDetail, outPutDNAResultsDetail;    
 
     /**
      * 
@@ -103,43 +102,7 @@ public class PML_DNA implements PlugIn {
             if (imageFile == null) {
                 return;
             }
-            // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
-            File outDir = new File(outDirResults);
-            if (!Files.exists(Paths.get(outDirResults))) {
-                outDir.mkdir();
-            }
             
-            /** 
-             * Write headers results for results file
-             */
-            // Global file for PML results
-            String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
-                    + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
-                    + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
-            BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
-            
-            // Global file for DNA results
-            resultsName = "GlobalNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tDNA dot number\tDNA Total IntDensity"
-                    + "\tDNA Diffuse IntDensity\tDNA Mean dot IntDensity\tDNA dot SD IntDensity\tDNA dot Min IntDensity"
-                    + "\tDNA dot Max IntDensity\tDNA dot Mean Volume\tDNA dot SD Volume\tDNA Min Vol\tDNA Max Vol"
-                    + "\tDNA Sum Vol\tDNA dot Mean center-center distance\tDNA dot SD center-center distance\tDNA Volume Coloc\n";
-            BufferedWriter outPutDNAResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
-
-            // Detailled parameters for PML results
-            resultsName = "DetailledNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
-                    + "\tPML dot center-center distance\n";
-            BufferedWriter outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
-            
-            // Detailled parameters for DNA results
-            resultsName = "DetailledNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#DNA dot\tDNA dot IntDensity\tDNA dot Volume\t"
-                    + "DNA dot center-center distance\n";
-            BufferedWriter outPutDNAResultsDetail = writeHeaders(outDirResults, resultsName, header);
             
             // create OME-XML metadata store of the latest schema version
             ServiceFactory factory;
@@ -174,6 +137,44 @@ public class PML_DNA implements PlugIn {
                             return;
                         cal.setUnit("microns");
                         System.out.println("x cal = " +cal.pixelWidth+", z cal=" + cal.pixelDepth);
+                        
+                        // create output folder
+                        outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
+                        File outDir = new File(outDirResults);
+                        if (!Files.exists(Paths.get(outDirResults))) {
+                            outDir.mkdir();
+                        }
+
+                        /** 
+                         * Write headers results for results file
+                         */
+                        // Global file for PML results
+                        String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
+                                + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
+                                + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
+                                + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
+                        outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
+
+                        // Global file for DNA results
+                        resultsName = "GlobalNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tDNA dot number\tDNA Total IntDensity"
+                                + "\tDNA Diffuse IntDensity\tDNA Mean dot IntDensity\tDNA dot SD IntDensity\tDNA dot Min IntDensity"
+                                + "\tDNA dot Max IntDensity\tDNA dot Mean Volume\tDNA dot SD Volume\tDNA Min Vol\tDNA Max Vol"
+                                + "\tDNA Sum Vol\tDNA dot Mean center-center distance\tDNA dot SD center-center distance\tDNA Volume Coloc\n";
+                        outPutDNAResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
+
+                        // Detailled parameters for PML results
+                        resultsName = "DetailledNucleusPMLResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
+                                + "\tPML dot center-center distance\n";
+                        outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
+
+                        // Detailled parameters for DNA results
+                        resultsName = "DetailledNucleusDNAResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\t#DNA dot\tDNA dot IntDensity\tDNA dot Volume\t"
+                                + "DNA dot center-center distance\n";
+                        outPutDNAResultsDetail = writeHeaders(outDirResults, resultsName, header);
                     }
 
                     series = reader.getSeriesCount();  

@@ -43,12 +43,10 @@ import static Tools.PML_Tools.median_filter;
 import static Tools.PML_Tools.objectsSizeFilter;
 import static Tools.PML_Tools.dotsDiffuse;
 import static Tools.PML_Tools.randomColorPop;
-import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
 import static Tools.PML_Tools.watershed;
 import fiji.util.gui.GenericDialogPlus;
 import ij.gui.Roi;
-import ij.gui.WaitForUserDialog;
 import ij.plugin.Duplicator;
 import ij.plugin.RGBStackMerge;
 import java.awt.Color;
@@ -86,8 +84,8 @@ public class PML_ES_NPM1C implements PlugIn {
     public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);  
     
     public static boolean segMethod = false; 
-
-
+    
+    public BufferedWriter outPutPMLResultsGlobal, outPutPMLResultsDetail;
     
     /**
      * Dialog ask for channels order
@@ -128,6 +126,8 @@ public class PML_ES_NPM1C implements PlugIn {
         return(ch);
     }
     
+      
+    
     /**
      * 
      * @param arg
@@ -148,31 +148,7 @@ public class PML_ES_NPM1C implements PlugIn {
             if (imageFile == null) {
                 return;
             }
-            // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
-            File outDir = new File(outDirResults);
-            if (!Files.exists(Paths.get(outDirResults))) {
-                outDir.mkdir();
-            }
             
-            /**
-             * Write headers results 
-            */
-            
-            // Global parameters
-            String resultsName = "GlobalNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Int in Mut Channel\tNucleus Sphericity\tPML dot number"
-                    + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
-                    + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance"
-                    + "\tPML dot Mean center-Nucleus border distance\tPML dot SD center-Nucleus border distance\n";
-            BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header);
-            
-            // Detailled parameters
-            resultsName = "DetailledPMLNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Int in Mut Channel\t#PML dot\tPML dot IntDensity"
-                    + "\tPML dot Volume\tPML dot center-center distance\n";
-            BufferedWriter outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
 
             
             // create OME-XML metadata store of the latest schema version
@@ -223,6 +199,31 @@ public class PML_ES_NPM1C implements PlugIn {
                             IJ.showStatus("Plugin cancelled !!!");
                             return;
                         }
+                        // create output folder
+                        outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+ File.separator;
+                        File outDir = new File(outDirResults);
+                        if (!Files.exists(Paths.get(outDirResults))) {
+                            outDir.mkdir();
+                        }
+
+                        /**
+                         * Write headers results 
+                        */
+
+                        // Global parameters
+                        String resultsName = "GlobalNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Int in Mut Channel\tNucleus Sphericity\tPML dot number"
+                                + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
+                                + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
+                                + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance"
+                                + "\tPML dot Mean center-Nucleus border distance\tPML dot SD center-Nucleus border distance\n";
+                        outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header);
+
+                        // Detailled parameters
+                        resultsName = "DetailledPMLNucleusResults_Int-"+intFactor+"_WaterShed-"+Boolean.toString(watershed)+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Int in Mut Channel\t#PML dot\tPML dot IntDensity"
+                                + "\tPML dot Volume\tPML dot center-center distance\n";
+                        outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
                     }
 
                     series = reader.getSeriesCount();  
@@ -249,7 +250,7 @@ public class PML_ES_NPM1C implements PlugIn {
                         
                         Objects3DPopulation nucPop = new Objects3DPopulation();
                         if (segMethod == false)
-                            nucPop = find_nucleus(imgNuc, "Li", 20, 30, 15, 5, 20, 8);
+                            nucPop = find_nucleus(imgNuc, "Triangle", 35, 40, 25, 10, 20, 8);
                         else
                             nucPop = find_nucleusCZI(imgNuc, 40);
 

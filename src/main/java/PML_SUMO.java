@@ -44,9 +44,7 @@ import static Tools.PML_Tools.dotsDiffuse;
 import static Tools.PML_Tools.findColoc;
 import static Tools.PML_Tools.intFactor;
 import static Tools.PML_Tools.randomColorPop;
-import static Tools.PML_Tools.saveDiffuseImage;
 import static Tools.PML_Tools.threshold;
-import static Tools.PML_Tools.watershed;
 import fiji.util.gui.GenericDialogPlus;
 import ij.gui.Roi;
 import ij.plugin.Duplicator;
@@ -85,7 +83,9 @@ public class PML_SUMO implements PlugIn {
 // Nucleus     
     public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     
-
+    public BufferedWriter outPutPMLResultsGlobal, outPutPMLResultsDetail, 
+            outPutSUMOResultsGlobal, outPutSUMOResultsDetail;
+    
     /**
      * Dialog ask for channels order
      * @param channels
@@ -141,43 +141,7 @@ public class PML_SUMO implements PlugIn {
             if (imageFile == null) {
                 return;
             }
-            // create output folder
-            outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
-            File outDir = new File(outDirResults);
-            if (!Files.exists(Paths.get(outDirResults))) {
-                outDir.mkdir();
-            }
             
-            /** 
-             * Write headers results for results file
-             */
-            // Global file for PML results
-            String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+".xls";
-            String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
-                    + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
-                    + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
-                    + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
-            BufferedWriter outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
-            
-            // Global file for SUMO results
-            resultsName = "GlobalNucleusSUMOResults_Int-"+intFactor+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tSUMO dot number\tSUMO Total IntDensity"
-                    + "\tSUMO Diffuse IntDensity\tSUMO Mean dot IntDensity\tSUMO dot SD IntDensity\tSUMO dot Min IntDensity"
-                    + "\tSUMO dot Max IntDensity\tSUMO dot Mean Volume\tSUMO dot SD Volume\tSUMO Min Vol\tSUMO Max Vol"
-                    + "\tSUMO Sum Vol\tSUMO dot Mean center-center distance\tSUMO dot SD center-center distance\tSUMO Volume Coloc\n";
-            BufferedWriter outPutSUMOResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
-
-            // Detailled parameters for PML results
-            resultsName = "DetailledNucleusPMLResults_Int-"+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
-                    + "\tPML dot center-center distance\n";
-            BufferedWriter outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
-            
-            // Detailled parameters for SUMO results
-            resultsName = "DetailledNucleusSUMOResults_Int-"+".xls";
-            header = "ImageName\t#Nucleus\tNucleus Volume\t#SUMO dot\tSUMO dot IntDensity\tSUMO dot Volume\t"
-                    + "SUMO dot center-center distance\n";
-            BufferedWriter outPutSUMOResultsDetail = writeHeaders(outDirResults, resultsName, header);
             
             // create OME-XML metadata store of the latest schema version
             ServiceFactory factory;
@@ -226,6 +190,43 @@ public class PML_SUMO implements PlugIn {
                             IJ.showStatus("Plugin cancelled !!!");
                             return;
                         }
+                        // create output folder
+                        outDirResults = inDir + File.separator+ "Results_IntFactor-"+intFactor+ File.separator;
+                        File outDir = new File(outDirResults);
+                        if (!Files.exists(Paths.get(outDirResults))) {
+                            outDir.mkdir();
+                        }
+
+                        /** 
+                         * Write headers results for results file
+                         */
+                        // Global file for PML results
+                        String resultsName = "GlobalNucleusPMLResults_Int-"+intFactor+".xls";
+                        String header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tPML dot number\tPML Total IntDensity"
+                                + "\tPML Diffuse IntDensity\tPML Mean dot IntDensity\tPML dot SD IntDensity\tPML dot Min IntDensity"
+                                + "\tPML dot Max IntDensity\tPML dot Mean Volume\tPML dot SD Volume\tPML Min Vol\tPML Max Vol"
+                                + "\tPML Sum Vol\tPML dot Mean center-center distance\tPML dot SD center-center distance\tPML Volume Coloc\n";
+                        outPutPMLResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
+
+                        // Global file for SUMO results
+                        resultsName = "GlobalNucleusSUMOResults_Int-"+intFactor+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\tNucleus Sphericity\tSUMO dot number\tSUMO Total IntDensity"
+                                + "\tSUMO Diffuse IntDensity\tSUMO Mean dot IntDensity\tSUMO dot SD IntDensity\tSUMO dot Min IntDensity"
+                                + "\tSUMO dot Max IntDensity\tSUMO dot Mean Volume\tSUMO dot SD Volume\tSUMO Min Vol\tSUMO Max Vol"
+                                + "\tSUMO Sum Vol\tSUMO dot Mean center-center distance\tSUMO dot SD center-center distance\tSUMO Volume Coloc\n";
+                        outPutSUMOResultsGlobal = writeHeaders(outDirResults, resultsName, header); 
+
+                        // Detailled parameters for PML results
+                        resultsName = "DetailledNucleusPMLResults_Int-"+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\t#PML dot\tPML dot IntDensity\tPML dot Volume"
+                                + "\tPML dot center-center distance\n";
+                        outPutPMLResultsDetail = writeHeaders(outDirResults, resultsName, header);
+
+                        // Detailled parameters for SUMO results
+                        resultsName = "DetailledNucleusSUMOResults_Int-"+".xls";
+                        header = "ImageName\t#Nucleus\tNucleus Volume\t#SUMO dot\tSUMO dot IntDensity\tSUMO dot Volume\t"
+                                + "SUMO dot center-center distance\n";
+                        outPutSUMOResultsDetail = writeHeaders(outDirResults, resultsName, header);
                     }
 
                     series = reader.getSeriesCount();  
@@ -372,7 +373,8 @@ public class PML_SUMO implements PlugIn {
                             computeNucParameters(nucleusObj, sumoNucPop, imgSUMOCrop, rootName+seriesName+"_DNA", outPutSUMOResultsDetail);
                                           
                             // Find colocalization in PML and SUMO populations
-                            findColoc(nucleusObj, pmlNucPop, sumoNucPop);
+                            findColoc(nucleusObj, pmlNucPop, sumoNucPop, 1);
+                            findColoc(nucleusObj, sumoNucPop, pmlNucPop , 2);
                             
                             // Compute global PML parameters                        
                             // nucleus volume, nb of PML, mean PML intensity, mean PLM volume 

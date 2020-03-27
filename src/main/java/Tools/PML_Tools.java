@@ -8,10 +8,8 @@ import ij.ImageStack;
 import ij.Prefs;
 import ij.gui.Plot;
 import ij.gui.Roi;
-import ij.gui.WaitForUserDialog;
 import ij.io.FileSaver;
 import ij.measure.Calibration;
-import ij.measure.ResultsTable;
 import ij.plugin.GaussianBlur3D;
 import ij.plugin.filter.GaussianBlur;
 import ij.plugin.filter.RankFilters;
@@ -24,7 +22,6 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -39,8 +36,6 @@ import mcib3d.geom.Object3D;
 import mcib3d.geom.Object3DVoxels;
 import mcib3d.geom.Object3D_IJUtils;
 import mcib3d.geom.Objects3DPopulation;
-import mcib3d.geom.Objects3DPopulationColocalisation;
-import mcib3d.geom.PairColocalisation;
 import mcib3d.geom.Point3D;
 import mcib3d.image3d.ImageFloat;
 import mcib3d.image3d.ImageHandler;
@@ -202,7 +197,7 @@ public static BufferedWriter writeHeaders(String outDirResults, String resultsFi
             imgNuc.setZ(i);
             imgNuc.updateAndDraw();
             IJ.run(imgNuc, "Nuclei Outline", "blur="+blur1+" blur2="+blur2+" threshold_method="+method+
-                    " outlier_radius="+radius+" outlier_threshold=1 max_nucleus_size="+maxNuc+
+                    " outlier_radius="+radius+" outlier_threshold=50 max_nucleus_size="+maxNuc+
                     " min_nucleus_size="+minNuc+" erosion=5 expansion_inner=5 expansion=5 results_overlay");
             imgNuc.setZ(1);
             imgNuc.updateAndDraw();
