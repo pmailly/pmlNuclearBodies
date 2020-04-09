@@ -10,7 +10,7 @@ import static Tools.PML_Tools.ObjectsIntFilter;
 import static Tools.PML_Tools.coloc;
 import static Tools.PML_Tools.computeNucParameters;
 import static Tools.PML_Tools.computeNucParameters2;
-import static Tools.PML_Tools.find_nucleusCZI;
+import static Tools.PML_Tools.find_nucleusDOG;
 import static Tools.PML_Tools.find_nucleus;
 import static Tools.PML_Tools.getPopFromImage;
 import ij.*;
@@ -252,7 +252,7 @@ public class PML_ES_NPM1C implements PlugIn {
                         if (segMethod == false)
                             nucPop = find_nucleus(imgNuc, "Triangle", 35, 40, 25, 10, 20, 8);
                         else
-                            nucPop = find_nucleusCZI(imgNuc, 40);
+                            nucPop = find_nucleusDOG(imgNuc, 8);
 
                         objectsSizeFilter(minNuc, maxNuc, nucPop, imgNuc, true);
                         int totalNucPop = nucPop.getNbObjects();
@@ -340,8 +340,12 @@ public class PML_ES_NPM1C implements PlugIn {
                             ImageHandler imhDotsObjects = ImageHandler.wrap(imgPMLCrop).createSameDimensions();
                             ImageHandler imhNucObjects = imhDotsObjects.duplicate();
                             pmlNucPop.draw(imhDotsObjects, 255);
+                            for (int p = 0; p < pmlNucPop.getNbObjects(); p++) {
+                                labelsObject(pmlNucPop.getObject(p), imhDotsObjects.getImagePlus(), (p+1), 255);
+                            }
                             nucObj.draw(imhNucObjects, 255);
                             labelsObject(nucObj, imhNucObjects.getImagePlus(), nucIndex, 255);
+                            
                             ImagePlus[] imgColors = {imhDotsObjects.getImagePlus(), null, imhNucObjects.getImagePlus()};
                             ImagePlus imgObjects = new RGBStackMerge().mergeHyperstacks(imgColors, false);
                             imgObjects.setCalibration(cal);
