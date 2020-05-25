@@ -80,8 +80,7 @@ public class PML_SUMO implements PlugIn {
    
 // Default Z step
     public static double zStep = 0.193;
-// Nucleus     
-    public static Nucleus nucleus = new Nucleus(null, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    
     
     public BufferedWriter outPutPMLResultsGlobal, outPutPMLResultsDetail, 
             outPutSUMOResultsGlobal, outPutSUMOResultsDetail;
@@ -111,6 +110,7 @@ public class PML_SUMO implements PlugIn {
         ch.add(0, gd.getNextChoice());
         ch.add(1, gd.getNextChoice());
         ch.add(2, gd.getNextChoice());
+        intFactor = gd.getNextNumber();
         if (showCal) {
             cal.pixelWidth = gd.getNextNumber();
             cal.pixelDepth = gd.getNextNumber();
